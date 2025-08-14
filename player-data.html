@@ -728,7 +728,7 @@
         .select('id')
         .eq('nickname', nickname);
 
-      if (fetchError) throw fetchError;
+      if (fetchError) throw fetchError; 
 
       if (existingPlayers && existingPlayers.length > 0) {
         showErrorToast("이미 존재하는 닉네임입니다.");
