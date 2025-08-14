@@ -107,7 +107,7 @@
                   </div>
                   <div class="w-layout-vflex flex-btn-box-popup">
                     <a href="#" onclick="hideDetailsPopup()" class="check-btn cancle w-button">취소</a>
-                    <a href="#" class="check-btn check w-button">확인</a>
+                    <a href="#" onclick="hideDetailsPopup()" id="update-player-button" class="check-btn check w-button">확인</a>
                   </div>
                   <a href="#" class="remove-player-btn w-button">유저 삭제</a>
                 </div>
@@ -787,23 +787,67 @@
     document.querySelector('.first-data-filed').style.display = 'none'; // '정보 기입' 팝업은 숨김
     document.querySelector('.first-data-filed-detail').style.display = 'flex'; // '상세 정보' 팝업은 표시
   }
-    // 페이지가 모두 로드된 후 실행
-    document.addEventListener('DOMContentLoaded', function() {
-      // 1. 페이지가 열리면 바로 전체 플레이어 목록을 불러옵니다.
-      getPlayerData();
 
-      // 2. '유저 정보 기입' 팝업의 '확인' 버튼에 addNewPlayer 함수를 연결합니다.
-      const addBtn = document.getElementById('add-player-button');
-      if (addBtn) {
-        addBtn.addEventListener('click', function(event) {
-          event.preventDefault(); // 링크의 기본 동작 방지
-          addNewPlayer();
-        });
-      }
-    });
+  async function handleUpdate() {
+    // 1. 상세정보 팝업의 모든 input에서 현재 값을 읽어옵니다.
+    const nickname = document.getElementById('detail-nickname').value;
+    
+    const updatedData = {
+      main_position: document.getElementById('detail-main-position').value,
+      sub_position: document.getElementById('detail-sub-position').value,
+      current_tier: document.getElementById('detail-current-tier').value,
+      peak_tier: document.getElementById('detail-peak-tier').value,
+      start_tier: document.getElementById('detail-start-tier').value,
+      internal_tier: document.getElementById('detail-internal-tier').value,
+      wins: document.getElementById('detail-wins').value,
+      losses: document.getElementById('detail-losses').value,
+      mmr: document.getElementById('detail-mmr').value,
+      mmr_adj: document.getElementById('detail-mmr-adj').value,
+      lp: document.getElementById('detail-lp').value,
+      title: document.getElementById('detail-title').value,
+    };
+
+    // 2. Supabase의 'players' 테이블에서 닉네임이 일치하는 데이터를 찾아 업데이트합니다.
+    const { data, error } = await supabase
+      .from('players')
+      .update(updatedData)
+      .eq('nickname', nickname);
+
+    if (error) {
+      console.error("데이터 수정 오류:", error);
+      onFailure(error);
+    } else {
+      alert("플레이어 정보가 성공적으로 수정되었습니다!");
+      hidePopup(); // 팝업 닫기
+      getPlayerData(); // 메인 테이블을 새로고침하여 변경사항을 바로 확인
+    }
+  }
+   // 페이지가 모두 로드된 후 실행
+  document.addEventListener('DOMContentLoaded', function() {
+    // 1. 페이지가 열리면 바로 전체 플레이어 목록을 불러옵니다.
+    getPlayerData();
+
+    // 2. '유저 정보 기입' 팝업의 '확인' 버튼에 addNewPlayer 함수를 연결합니다.
+    const addBtn = document.getElementById('add-player-button');
+    if (addBtn) {
+      addBtn.addEventListener('click', function(event) {
+        event.preventDefault(); // 링크의 기본 동작 방지
+        addNewPlayer();
+      });
+    }
+
+    // 3. '상세정보' 팝업의 '수정 완료' 버튼에 handleUpdate 함수를 연결합니다.
+    const updateBtn = document.getElementById('update-player-button');
+    if (updateBtn) {
+      updateBtn.addEventListener('click', function(event) {
+        event.preventDefault();
+        handleUpdate();
+      });
+    }
+  });
 
   /**
- * 상세정보 팝업의 '취소' 버튼 클릭 시 팝업을 닫는 함수
+ * 상세정보 팝업 클릭 시 팝업을 닫는 함수
  */
 function hideDetailsPopup() {
     const popup = document.querySelector('.popupframe');
