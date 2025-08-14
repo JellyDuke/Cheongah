@@ -703,9 +703,12 @@
         return;
       }
 
-      // '현티어'를 기준으로 초기 '내전 티어'와 '내전 MMR'을 설정합니다.
+       // --- MMR 및 보정치 자동 계산 ---
       const initialInternalTier = current_tier;
       const initialMmr = getMmrByTier(initialInternalTier);
+      
+      // 신규 유저는 보정치가 0입니다.
+      const initialMmrAdj = 0; 
 
       const newPlayerData = {
         nickname: nickname,
@@ -716,6 +719,7 @@
         start_tier: current_tier,
         internal_tier: initialInternalTier,
         mmr: initialMmr, // 자동 계산된 MMR
+        mmr_adj: initialMmrAdj, // 계산된 보정치 저장
         // 나머지 필드는 DB 기본값(0, 'N/A' 등)을 사용합니다.
       };
 
@@ -798,31 +802,31 @@
   }
 
   async function handleUpdate() {
-    // --- 1. 원본 데이터가 없으면 실행 중지 ---
+    // --- 1. 원본 데이터 확인 ---
     if (!currentPlayerOriginalData) {
       alert("플레이어 원본 데이터를 불러오지 못했습니다. 다시 시도해주세요.");
       return;
     }
 
-    // --- 2. 팝업에서 사용자가 수정한 새로운 값들을 가져오기 ---
+    // --- 2. 팝업에서 사용자가 수정한 값들 가져오기 ---
     const newWins = Number(document.getElementById('detail-wins').value) || 0;
     const newLosses = Number(document.getElementById('detail-losses').value) || 0;
-
-    // --- 3. 기존 값과 비교하여 승/패 변화량 계산 ---
+    const current_tier = document.getElementById('detail-current-tier').value;
+    const peak_tier = document.getElementById('detail-peak-tier').value;
+    
+    // --- 3. LP 및 티어 계산을 위한 변수 초기화 ---
     const oldWins = Number(currentPlayerOriginalData.wins) || 0;
     const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
-    const winDifference = newWins - oldWins;
-    const lossDifference = newLosses - oldLosses;
-
-    // --- 4. LP 및 티어 계산을 위한 변수 초기화 ---
     let currentLp = Number(currentPlayerOriginalData.lp) || 0;
     let internalTier = currentPlayerOriginalData.internal_tier || '아이언4';
-    let message = "<br>플레이어 정보가 성공적으로 수정되었습니다."; // 기본 성공 메시지
+    let message = "플레이어 정보가 성공적으로 수정되었습니다.";
 
-    // --- 5. 총 게임 수 확인 및 LP/티어 변동 로직 실행 ---
+    // --- 4. LP 및 티어 자동 변동 로직 ---
     const totalGames = newWins + newLosses;
     if (totalGames >= 5) {
-      // 5판 이상 플레이했을 경우에만 LP/티어 변동
+      const winDifference = newWins - oldWins;
+      const lossDifference = newLosses - oldLosses;
+
       if (winDifference > 0) { // 승리 기록
         for (let i = 0; i < winDifference; i++) {
           const tempWinrate = ((oldWins + i) / (oldWins + i + oldLosses) * 100) || 50;
@@ -855,20 +859,28 @@
           currentLp += 100;
         } else { currentLp = 0; break; }
       }
-    } else if (winDifference > 0 || lossDifference > 0) {
-        // 5판 미만인데 승/패가 변경된 경우, LP는 변경하지 않고 메시지만 추가
+    } else if ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0) {
         message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
     }
 
+    // --- 5. MMR 보정치 자동 계산 ---
+    const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
+    const currentTierIndex = TIER_ORDER.indexOf(current_tier);
+    let mmrAdjustment = 0;
+    if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
+        const tierDifference = peakTierIndex - currentTierIndex;
+        mmrAdjustment = tierDifference * 15; // 규칙: 1티어 차이당 15 MMR 보정
+    }
+
     // --- 6. 최종 데이터 정리 ---
-    const finalWinrate = totalGames > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
+    const finalWinrate = totalGames > 0 ? ((newWins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
     const finalMmr = getMmrByTier(internalTier);
 
     const updatedData = {
       main_position: document.getElementById('detail-main-position').value,
       sub_position: document.getElementById('detail-sub-position').value,
-      current_tier: document.getElementById('detail-current-tier').value,
-      peak_tier: document.getElementById('detail-peak-tier').value,
+      current_tier: current_tier,
+      peak_tier: peak_tier,
       start_tier: document.getElementById('detail-start-tier').value,
       title: document.getElementById('detail-title').value,
       wins: newWins,
@@ -876,6 +888,7 @@
       winrate: finalWinrate,
       internal_tier: internalTier,
       mmr: finalMmr,
+      mmr_adj: mmrAdjustment,
       lp: currentLp,
     };
 
@@ -889,7 +902,7 @@
       console.error("데이터 수정 오류:", error);
       onFailure(error);
     } else {
-      alert(message); // 수정된 메시지 사용
+      alert(message);
       hidePopup();
       getPlayerData();
     }
