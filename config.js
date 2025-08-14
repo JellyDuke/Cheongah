@@ -1,5 +1,5 @@
-const supabaseUrl = 'https://gfvbfarsgwvkilgptkon.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmdmJmYXJzZ3d2a2lsZ3B0a29uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUxNTUwNDAsImV4cCI6MjA3MDczMTA0MH0.wRuSbe2TilTS2Wg28tJQym0PNigLZ7hzf55nPVs47JU'; 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON;
 
   // 1. 티어별 MMR 기준표 데이터
   const MMR_DATA = {
