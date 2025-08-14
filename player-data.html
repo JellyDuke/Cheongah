@@ -691,31 +691,33 @@
    * '유저 정보 기입' 팝업의 데이터를 Supabase에 저장하는 새로운 함수
    */
     async function addNewPlayer() {
-      // 1. 각 입력창에서 값을 읽어옵니다.
       const nickname = document.getElementById('add-nickname').value;
       const main_position = document.getElementById('add-main-position').value;
       const sub_position = document.getElementById('add-sub-position').value;
       const current_tier = document.getElementById('add-current-tier').value;
       const peak_tier = document.getElementById('add-peak-tier').value;
 
-      // 2. 닉네임이 비어있는지 확인합니다.
       if (!nickname) {
         alert("닉네임은 필수 항목입니다.");
         return;
       }
 
-      // 3. Supabase에 보낼 데이터 객체를 만듭니다. (키 이름은 DB의 열 이름과 같아야 합니다)
+      // '현티어'를 기준으로 초기 '내전 티어'와 '내전 MMR'을 설정합니다.
+      const initialInternalTier = current_tier;
+      const initialMmr = getMmrByTier(initialInternalTier);
+
       const newPlayerData = {
         nickname: nickname,
         main_position: main_position,
         sub_position: sub_position,
         current_tier: current_tier,
         peak_tier: peak_tier,
-        start_tier: current_tier, // 시작 티어는 현 티어와 동일하게 설정
-        internal_tier: current_tier // 내전 티어도 현 티어와 동일하게 초기 설정
+        start_tier: current_tier,
+        internal_tier: initialInternalTier,
+        mmr: initialMmr, // 자동 계산된 MMR
+        // 나머지 필드는 DB 기본값(0, 'N/A' 등)을 사용합니다.
       };
 
-      // 4. Supabase의 'players' 테이블에 데이터를 삽입(insert)합니다.
       const { data, error } = await supabase
         .from('players')
         .insert([newPlayerData]);
@@ -725,8 +727,8 @@
         onFailure(error);
       } else {
         alert("새로운 플레이어가 성공적으로 추가되었습니다!");
-        hidePopup(); // 팝업 닫기
-        getPlayerData(); // 테이블을 새로고침하여 추가된 플레이어를 바로 확인
+        hidePopup();
+        getPlayerData();
       }
     }
 
@@ -849,12 +851,18 @@
   /**
  * 상세정보 팝업 클릭 시 팝업을 닫는 함수
  */
-function hideDetailsPopup() {
-    const popup = document.querySelector('.popupframe');
-      const firstField = document.querySelector('.popupframe .first-data-filed-detail');
-      popup.style.display = 'none';
-      firstField.style.display = 'none';
-}
+  function hideDetailsPopup() {
+      const popup = document.querySelector('.popupframe');
+        const firstField = document.querySelector('.popupframe .first-data-filed-detail');
+        popup.style.display = 'none';
+        firstField.style.display = 'none';
+  }
+  function getMmrByTier(tierString) {
+    if (!tierString) return 1500;
+    // 띄어쓰기 없는 한글 티어를 바로 키로 사용
+    return MMR_DATA[tierString.replace(/\s+/g, '')] || 1500;
+  }
+
   </script>
 </body>
 </html>
