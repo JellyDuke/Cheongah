@@ -2,6 +2,15 @@
 <html data-wf-page="689a08b97ed36eb33a45e1d8" data-wf-site="68908363cfa0300d0c3b5c0d">
 <head>
   <meta charset="utf-8">
+  <script>
+    // '출입증'이 있는지 확인합니다.
+    if (sessionStorage.getItem('isAuthenticated') !== 'true') {
+      // 출입증이 없으면, 경고를 띄우고 즉시 쫓아냅니다.
+      alert('접근 권한이 없습니다. 비밀번호를 먼저 입력하세요.');
+      // 이 코드가 실행되면, 아래의 HTML 내용은 전혀 로드되지 않습니다.
+      window.location.href = 'password.html';
+    }
+  </script>
   <title>player_data</title>
   <meta content="player_data" property="og:title">
   <meta content="player_data" property="twitter:title">
