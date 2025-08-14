@@ -130,5 +130,3 @@ function showErrorToast(message) {
   }).showToast();
 }
 
-// 관리자 비밀번호
-const ADMIN_PASSWORD = "#aB9chung72@AbF#*C";
