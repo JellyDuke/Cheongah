@@ -1,5 +1,5 @@
-const supabaseUrl = process.env.local.SUPABASE_URL;
-const supabaseKey = process.env.local.SUPABASE_SERVICE_ROLE;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE;
   // 1. 티어별 MMR 기준표 데이터
   const MMR_DATA = {
     "아이언4": 825,
