@@ -599,6 +599,7 @@
     }
     //리모컨
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    let currentPlayerOriginalData = null;
     /**
     * Supabase에서 모든 플레이어 데이터를 가져오는 새로운 함수
     */
@@ -761,14 +762,20 @@
   /**
    * 서버에서 받은 데이터로 '상세정보' 팝업의 입력창을 채우는 함수
    */
+  /**
+ * 서버에서 받은 데이터로 '상세정보' 팝업의 입력창을 채우는 함수
+ */
   function populateDetailsPopup(playerData) {
-    // 승/패 데이터를 기반으로 승률을 다시 계산하여 표시합니다.
+    // 1. 나중에 LP 계산 시 비교할 수 있도록, 플레이어의 원본 데이터를 전역 변수에 저장합니다.
+    currentPlayerOriginalData = playerData;
+
+    // 2. 승/패 데이터를 기반으로 승률을 다시 계산하여 표시합니다.
     const wins = Number(playerData.wins) || 0;
     const losses = Number(playerData.losses) || 0;
     const totalGames = wins + losses;
     const formattedWinrate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
 
-    // 각 input 요소에 데이터 할당
+    // 3. HTML의 각 input 요소에 ID를 기준으로 데이터 값을 할당합니다.
     document.getElementById('detail-nickname').value = playerData.nickname || '';
     document.getElementById('detail-main-position').value = playerData.main_position || '';
     document.getElementById('detail-sub-position').value = playerData.sub_position || '';
@@ -784,44 +791,104 @@
     document.getElementById('detail-lp').value = playerData.lp || 0;
     document.getElementById('detail-title').value = playerData.title || '';
 
-    // 팝업창들을 화면에 표시
+    // 4. 팝업창들을 화면에 표시합니다.
     document.querySelector('.popupframe').style.display = 'flex';
     document.querySelector('.first-data-filed').style.display = 'none'; // '정보 기입' 팝업은 숨김
     document.querySelector('.first-data-filed-detail').style.display = 'flex'; // '상세 정보' 팝업은 표시
   }
 
   async function handleUpdate() {
-    // 1. 상세정보 팝업의 모든 input에서 현재 값을 읽어옵니다.
-    const nickname = document.getElementById('detail-nickname').value;
-    
+    // --- 1. 원본 데이터가 없으면 실행 중지 ---
+    if (!currentPlayerOriginalData) {
+      alert("플레이어 원본 데이터를 불러오지 못했습니다. 다시 시도해주세요.");
+      return;
+    }
+
+    // --- 2. 팝업에서 사용자가 수정한 새로운 값들을 가져오기 ---
+    const newWins = Number(document.getElementById('detail-wins').value) || 0;
+    const newLosses = Number(document.getElementById('detail-losses').value) || 0;
+
+    // --- 3. 기존 값과 비교하여 승/패 변화량 계산 ---
+    const oldWins = Number(currentPlayerOriginalData.wins) || 0;
+    const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
+    const winDifference = newWins - oldWins;
+    const lossDifference = newLosses - oldLosses;
+
+    // --- 4. LP 및 티어 계산 시작 ---
+    let currentLp = Number(currentPlayerOriginalData.lp) || 0;
+    let internalTier = currentPlayerOriginalData.internal_tier || '아이언4';
+
+    // 5판 이상 플레이했을 경우에만 LP/티어 변동
+    if ((newWins + newLosses) >= 5) {
+      // 승리 기록만큼 LP 계산 반복
+      if (winDifference > 0) {
+        for (let i = 0; i < winDifference; i++) {
+          const tempWinrate = ((oldWins + i) / (oldWins + i + oldLosses) * 100) || 50;
+          const winrateKey = Math.floor(tempWinrate / 5) * 5;
+          const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
+          currentLp += lpChange;
+        }
+      }
+      // 패배 기록만큼 LP 계산 반복
+      if (lossDifference > 0) {
+        for (let i = 0; i < lossDifference; i++) {
+          const tempWinrate = (newWins / (newWins + oldLosses - i) * 100) || 50;
+          const winrateKey = Math.floor(tempWinrate / 5) * 5;
+          const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
+          currentLp += lpChange;
+        }
+      }
+
+      // 승급/강등 처리
+      while (currentLp >= 100) {
+        const currentTierIndex = TIER_ORDER.indexOf(internalTier);
+        if (currentTierIndex < TIER_ORDER.length - 1) {
+          internalTier = TIER_ORDER[currentTierIndex + 1];
+          currentLp -= 100;
+        } else { currentLp = 100; break; } // 최고 티어 도달
+      }
+      while (currentLp < 0) {
+        const currentTierIndex = TIER_ORDER.indexOf(internalTier);
+        if (currentTierIndex > 0) {
+          internalTier = TIER_ORDER[currentTierIndex - 1];
+          currentLp += 100;
+        } else { currentLp = 0; break; } // 최하위 티어 도달
+      }
+    }
+
+    // --- 5. 최종 데이터 정리 ---
+    const finalWinrate = (newWins + newLosses) > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
+    const finalMmr = getMmrByTier(internalTier); // 새 티어에 맞는 MMR 재계산
+
     const updatedData = {
       main_position: document.getElementById('detail-main-position').value,
       sub_position: document.getElementById('detail-sub-position').value,
       current_tier: document.getElementById('detail-current-tier').value,
       peak_tier: document.getElementById('detail-peak-tier').value,
       start_tier: document.getElementById('detail-start-tier').value,
-      internal_tier: document.getElementById('detail-internal-tier').value,
-      wins: document.getElementById('detail-wins').value,
-      losses: document.getElementById('detail-losses').value,
-      mmr: document.getElementById('detail-mmr').value,
-      mmr_adj: document.getElementById('detail-mmr-adj').value,
-      lp: document.getElementById('detail-lp').value,
       title: document.getElementById('detail-title').value,
+      // 자동 계산된 최종 값들
+      wins: newWins,
+      losses: newLosses,
+      winrate: finalWinrate,
+      internal_tier: internalTier,
+      mmr: finalMmr,
+      lp: currentLp,
     };
 
-    // 2. Supabase의 'players' 테이블에서 닉네임이 일치하는 데이터를 찾아 업데이트합니다.
+    // --- 6. Supabase에 최종 데이터 업데이트 ---
     const { data, error } = await supabase
       .from('players')
       .update(updatedData)
-      .eq('nickname', nickname);
+      .eq('nickname', currentPlayerOriginalData.nickname);
 
     if (error) {
       console.error("데이터 수정 오류:", error);
       onFailure(error);
     } else {
       alert("플레이어 정보가 성공적으로 수정되었습니다!");
-      hidePopup(); // 팝업 닫기
-      getPlayerData(); // 메인 테이블을 새로고침하여 변경사항을 바로 확인
+      hidePopup();
+      getPlayerData();
     }
   }
    // 페이지가 모두 로드된 후 실행
