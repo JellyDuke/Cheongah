@@ -1,5 +1,4 @@
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON;
+
 window.SUPABASE_URL = "%%NEXT_PUBLIC_SUPABASE_URL%%";
 window.SUPABASE_ANON = "%%NEXT_PUBLIC_SUPABASE_ANON%%";
 
