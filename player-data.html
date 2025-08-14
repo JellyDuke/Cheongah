@@ -109,7 +109,7 @@
                     <a href="#" onclick="hideDetailsPopup()" class="check-btn cancle w-button">취소</a>
                     <a href="#" onclick="hideDetailsPopup()" id="update-player-button" class="check-btn check w-button">확인</a>
                   </div>
-                  <a href="#" class="remove-player-btn w-button">유저 삭제</a>
+                  <a href="#" onclick="handleDelete()" class="remove-player-btn w-button">유저 삭제</a>
                 </div>
                 <div class="realy-remove-pop">
                   <div class="pop-remove">
@@ -953,7 +953,34 @@
     // 띄어쓰기 없는 한글 티어를 바로 키로 사용
     return MMR_DATA[tierString.replace(/\s+/g, '')] || 1500;
   }
+  async function handleDelete() {
+    // 1. 현재 상세정보 팝업에 표시된 닉네임을 가져옵니다.
+    const nickname = document.getElementById('detail-nickname').value;
+    if (!nickname) {
+      alert('삭제할 플레이어 정보가 올바르게 로드되지 않았습니다.');
+      return;
+    }
 
+    // 2. 사용자에게 정말 삭제할 것인지 재확인합니다. (실수 방지)
+    const message = `정말로 '${nickname}' 님의 데이터를 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
+    
+    if (confirm(message)) {
+      // 3. 사용자가 '확인'을 누르면, Supabase에 삭제 명령을 보냅니다.
+      const { error } = await supabase
+        .from('players')
+        .delete()
+        .eq('nickname', nickname);
+
+      if (error) {
+        console.error("데이터 삭제 오류:", error);
+        onFailure(error);
+      } else {
+        alert(`'${nickname}' 님의 데이터가 성공적으로 삭제되었습니다.`);
+        hidePopup(); // 팝업 닫기
+        getPlayerData(); // 메인 테이블을 새로고침하여 삭제된 결과를 즉시 반영
+      }
+    }
+  }
   </script>
 </body>
 </html>
