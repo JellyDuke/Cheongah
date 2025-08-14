@@ -35,23 +35,23 @@
               <div class="w-layout-vflex first-data-filed">
                 <h1 class="title-pop">유저 정보 기입</h1>
                 <div class="block-box">
-                  <div>닉네임</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="닉네임을 입력해주세요." type="text" id="field" required="">
+                  <div>닉네임</div><input class="player-data-input w-input" type="text" id="add-nickname" required="">
                 </div>
                 <div class="block-box">
-                  <div>주포지션</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="주포지션을 입력해주세요." type="text" id="field" required="">
+                  <div>주포지션</div><input class="player-data-input w-input" type="text" id="add-main-position">
                 </div>
                 <div class="block-box">
-                  <div>서브포지션</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="서브 포지션을 입력해주세요." type="text" id="field" required="">
+                  <div>서브포지션</div><input class="player-data-input w-input" type="text" id="add-sub-position">
                 </div>
                 <div class="block-box">
-                  <div>현티어</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 언랭, 골드4" type="text" id="field" required="">
+                  <div>현티어</div><input class="player-data-input w-input" placeholder="ex) 골드4" type="text" id="add-current-tier">
                 </div>
                 <div class="block-box">
-                  <div>최고티어</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 골드3" type="text" id="field" required="">
+                  <div>최고티어</div><input class="player-data-input w-input" placeholder="ex) 골드3" type="text" id="add-peak-tier">
                 </div>
                 <div class="w-layout-vflex flex-btn-box-popup">
-                  <a href="#" class="check-btn cancle w-button">취소</a>
-                  <a href="#" class="check-btn check w-button">확인</a>
+                  <a href="#" onclick="hidePopup()" class="check-btn cancle w-button">취소</a>
+                  <a href="#" id="add-player-button" class="check-btn check w-button">확인</a>
                 </div>
               </div>
               <div class="w-layout-vflex first-data-filed-detail">
@@ -574,7 +574,7 @@
         </div>
       </div>
     </div>
-    <a href="#" class="write-btn w-inline-block"><svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewbox="0 0 24 25" fill="none" app="ikonik" class="ikonik-oi5di">
+    <a href="#" onclick="showPopup()" class="write-btn w-inline-block"><svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewbox="0 0 24 25" fill="none" app="ikonik" class="ikonik-oi5di">
         <path d="M6.6273 20.5959L4.56826 18.5368L3.78386 17.7524L2.99946 16.968C2.80336 17.2622 2.70531 17.6544 2.60726 17.9485L1.03847 22.753C0.940416 23.1452 1.03847 23.4393 1.23456 23.7335C1.43066 23.9296 1.82286 24.0276 2.21506 23.9296L7.0195 22.4588C7.4117 22.3608 7.70585 22.1647 8 22.0666L7.31365 21.3803L6.6273 20.5959Z" fill="currentColor" app="ikonik" class="path-n5p8l"></path>
         <path d="M21.9098 3.09167C21.0911 2.37662 20.17 1.96802 19.0443 1.96802C17.9185 1.96802 16.7927 2.47877 15.974 3.29597L4 15.3497L4.71639 16.0648L5.43279 16.7798L8.19602 19.5379L8.91241 20.253L9.6288 20.968L21.7052 8.91425C23.3426 7.27985 23.445 4.62393 21.9098 3.09167Z" fill="currentColor" app="ikonik" class="path-hukm2"></path>
       </svg></a>
@@ -582,6 +582,21 @@
   <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=68908363cfa0300d0c3b5c0d" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
   <script src="js/webflow.js" type="text/javascript"></script>
   <script>
+    function showPopup() {
+      const popup = document.querySelector('.popupframe');
+      const firstField = document.querySelector('.popupframe .first-data-filed');
+
+      popup.style.display = 'flex';
+      firstField.style.display = 'flex';
+    }
+
+    function hidePopup() {
+        const popup = document.querySelector('.popupframe');
+        const firstField = document.querySelector('.popupframe .first-data-filed');
+
+        firstField.style.display = 'none';
+        popup.style.display = 'none';
+    }
   //리모컨
   const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
   /**
@@ -660,23 +675,27 @@
       tableBody.appendChild(row);
     });
   }
-  
+
   // 4. 오류 처리 함수 (새로 추가)
   function onFailure(error) {
     alert("오류가 발생했습니다: " + error.message);
   }
 
-  // 페이지가 모두 로드된 후 실행되는 부분 (새로운 방식)
+  // 페이지가 모두 로드된 후 실행
   document.addEventListener('DOMContentLoaded', function() {
-    // Supabase에서 데이터를 가져오는 함수를 호출합니다.
+    // 1. 페이지가 열리면 바로 전체 플레이어 목록을 불러옵니다.
     getPlayerData();
 
-    // '유저 정보 기입' 팝업의 '확인' 버튼 이벤트 리스너 (이 부분은 다음 단계에서 수정할 예정입니다.)
-    const submitBtn = document.getElementById('submit-button');
-    if (submitBtn) {
-      // submitBtn.addEventListener('click', submitPlayerData);
+    // 2. '유저 정보 기입' 팝업의 '확인' 버튼에 addNewPlayer 함수를 연결합니다.
+    const addBtn = document.getElementById('add-player-button');
+    if (addBtn) {
+      addBtn.addEventListener('click', function(event) {
+        event.preventDefault(); // 링크의 기본 동작 방지
+        addNewPlayer();
+      });
     }
   });
+
   </script>
 </body>
 </html>
