@@ -1,8 +1,7 @@
-// api/players.js
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -12,6 +11,7 @@ export default async function handler(req, res) {
     if (error) return res.status(500).json({ error: error.message });
     res.status(200).json(data);
   } catch (err) {
+    console.error('Server error:', err.message);
     res.status(500).json({ error: err.message });
   }
 }

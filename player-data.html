@@ -607,13 +607,18 @@
     //fetch
     
     async function loadPlayers() {
+      const output = document.getElementById('output');
+      if (!output) return console.error('Output element not found');
+
       try {
-        const res = await fetch('/api/players'); // 서버리스 프록시 호출
+        const res = await fetch('/api/players');
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
         const data = await res.json();
-        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        output.textContent = JSON.stringify(data, null, 2);
       } catch (err) {
         console.error(err);
-        document.getElementById('output').textContent = 'Error loading data';
+        output.textContent = 'Error loading data: ' + err.message;
       }
     }
 
