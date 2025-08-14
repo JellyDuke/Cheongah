@@ -691,51 +691,58 @@
     /**
    * '유저 정보 기입' 팝업의 데이터를 Supabase에 저장하는 새로운 함수
    */
-    async function addNewPlayer() {
-      const nickname = document.getElementById('add-nickname').value;
-      const main_position = document.getElementById('add-main-position').value;
-      const sub_position = document.getElementById('add-sub-position').value;
-      const current_tier = document.getElementById('add-current-tier').value;
-      const peak_tier = document.getElementById('add-peak-tier').value;
+  async function addNewPlayer() {
+    const nickname = document.getElementById('add-nickname').value;
+    const main_position = document.getElementById('add-main-position').value;
+    const sub_position = document.getElementById('add-sub-position').value;
+    const current_tier = document.getElementById('add-current-tier').value;
+    const peak_tier = document.getElementById('add-peak-tier').value;
 
-      if (!nickname) {
-        alert("닉네임은 필수 항목입니다.");
-        return;
-      }
-
-       // --- MMR 및 보정치 자동 계산 ---
-      const initialInternalTier = current_tier;
-      const initialMmr = getMmrByTier(initialInternalTier);
-      
-      // 신규 유저는 보정치가 0입니다.
-      const initialMmrAdj = 0; 
-
-      const newPlayerData = {
-        nickname: nickname,
-        main_position: main_position,
-        sub_position: sub_position,
-        current_tier: current_tier,
-        peak_tier: peak_tier,
-        start_tier: current_tier,
-        internal_tier: initialInternalTier,
-        mmr: initialMmr, // 자동 계산된 MMR
-        mmr_adj: initialMmrAdj, // 계산된 보정치 저장
-        // 나머지 필드는 DB 기본값(0, 'N/A' 등)을 사용합니다.
-      };
-
-      const { data, error } = await supabase
-        .from('players')
-        .insert([newPlayerData]);
-
-      if (error) {
-        console.error("데이터 추가 오류:", error);
-        onFailure(error);
-      } else {
-        alert("새로운 플레이어가 성공적으로 추가되었습니다!");
-        hidePopup();
-        getPlayerData();
-      }
+    if (!nickname) {
+      alert("닉네임은 필수 항목입니다.");
+      return;
     }
+
+    // --- MMR 및 보정치 자동 계산 (수정됨) ---
+    const initialInternalTier = current_tier;
+    const baseMmr = getMmrByTier(initialInternalTier);
+    
+    // '최고티어'와 '현티어'의 차이를 기반으로 보정치를 계산합니다.
+    const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
+    const currentTierIndex = TIER_ORDER.indexOf(current_tier);
+    let mmrAdjustment = 0;
+    if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
+        const tierDifference = peakTierIndex - currentTierIndex;
+        mmrAdjustment = tierDifference * 15; // 규칙: 1티어 차이당 15 MMR 보정
+    }
+    
+    // 최종 MMR = 기본 MMR + 보정치
+    const finalMmr = baseMmr + mmrAdjustment;
+    // -----------------------------
+
+    const newPlayerData = {
+      nickname: nickname,
+      main_position: main_position,
+      sub_position: sub_position,
+      current_tier: current_tier,
+      peak_tier: peak_tier,
+      start_tier: current_tier,
+      internal_tier: initialInternalTier,
+      mmr: finalMmr, // 합산된 최종 MMR 저장
+      mmr_adj: mmrAdjustment, // 계산된 보정치 저장
+    };
+
+    const { data, error } = await supabase.from('players').insert([newPlayerData]);
+
+    if (error) {
+      console.error("데이터 추가 오류:", error);
+      onFailure(error);
+    } else {
+      alert("새로운 플레이어가 성공적으로 추가되었습니다!");
+      hidePopup();
+      getPlayerData();
+    }
+  }
 
     // 4. 오류 처리 함수 (새로 추가)
     function onFailure(error) {
@@ -873,8 +880,9 @@
     }
 
     // --- 6. 최종 데이터 정리 ---
-    const finalWinrate = totalGames > 0 ? ((newWins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
-    const finalMmr = getMmrByTier(internalTier);
+    const finalWinrate = totalGames > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
+    const baseMmr = getMmrByTier(internalTier); // '내전 티어' 기준 기본 MMR
+    const finalMmr = baseMmr + mmrAdjustment; // 최종 MMR = 기본 MMR + 보정치
 
     const updatedData = {
       main_position: document.getElementById('detail-main-position').value,
@@ -887,8 +895,8 @@
       losses: newLosses,
       winrate: finalWinrate,
       internal_tier: internalTier,
-      mmr: finalMmr,
-      mmr_adj: mmrAdjustment,
+      mmr: finalMmr, // 합산된 최종 MMR 저장
+      mmr_adj: mmrAdjustment, // 계산된 보정치 저장
       lp: currentLp,
     };
 
