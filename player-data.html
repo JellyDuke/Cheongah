@@ -604,26 +604,8 @@
         firstField.style.display = 'none';
         popup.style.display = 'none';
     }
-    //fetch
-    
-    async function loadPlayers() {
-      const output = document.getElementById('output');
-      if (!output) return console.error('Output element not found');
-
-      try {
-        const res = await fetch('/api/players');
-        if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-        const data = await res.json();
-        output.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        console.error(err);
-        output.textContent = 'Error loading data: ' + err.message;
-      }
-    }
-
-    loadPlayers();
-
+    //리모컨
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
     let currentPlayerOriginalData = null;
     /**
     * Supabase에서 모든 플레이어 데이터를 가져오는 새로운 함수
