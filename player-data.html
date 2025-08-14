@@ -16,8 +16,16 @@
   <script src="config.js"></script>
   <!-- Supabase 라이브러리 추가 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body>
+  <div id="loader-overlay" class="loader-overlay">
+    <div class="loader-content">
+      <div class="spinner"></div>
+      <p id="loader-text">처리 중...</p>
+    </div>
+  </div>
   <div class="root">
     <div data-w-id="c4eeed9e-b99b-71e0-b66e-a78a7b4517fd" style="height:0px" class="top">
       <div class="top-left-wrapper">
@@ -593,40 +601,43 @@
     /**
     * Supabase에서 모든 플레이어 데이터를 가져오는 새로운 함수
     */
-    async function getPlayerData() {
-      // 'players' 테이블에서 모든(*) 데이터를, 생성된 시간(created_at)을 기준으로 오름차순 정렬하여 가져옵니다.
+  async function getPlayerData() {
+  // 1. "불러오는 중..." 로딩 화면을 표시합니다.
+    showLoader("플레이어 목록을 불러오는 중...");
+
+    try {
+      // 2. Supabase에서 데이터를 가져옵니다.
       const { data, error } = await supabase
         .from('players')
         .select('*')
         .order('created_at', { ascending: true });
 
+      // 3. 오류가 발생하면, 오류를 발생시켜 catch 블록으로 보냅니다.
       if (error) {
-        // 오류가 발생하면 콘솔에 기록하고, 사용자에게 알립니다.
-        console.error("데이터 불러오기 오류:", error);
-        onFailure(error); // 기존 오류 처리 함수 호출
-      } else {
-        // Supabase는 데이터를 객체 배열( [{nickname: 'a'}, {nickname: 'b'}] )로 반환합니다.
-        // 기존 buildPlayerTable 함수가 이해하는 2차원 배열( [['a'], ['b']] )로 변환해줍니다.
-        const a_playerData = data.map(player => [
-            player.nickname,
-            player.main_position,
-            player.sub_position,
-            player.current_tier,
-            player.peak_tier,
-            player.start_tier,
-            player.internal_tier,
-            player.winrate,
-            player.wins,
-            player.losses,
-            player.mmr,
-            player.mmr_adj,
-            player.lp,
-            player.title
-        ]);
-        // 변환된 데이터로 테이블을 그립니다.
-        buildPlayerTable(a_playerData);
+        throw error;
       }
+
+      // 4. 데이터를 테이블이 이해할 수 있는 형식으로 변환합니다.
+      const a_playerData = data.map(player => [
+          player.nickname, player.main_position, player.sub_position,
+          player.current_tier, player.peak_tier, player.start_tier,
+          player.internal_tier, player.winrate, player.wins,
+          player.losses, player.mmr, player.mmr_adj,
+          player.lp, player.title
+      ]);
+      
+      // 5. 변환된 데이터로 테이블을 그립니다.
+      buildPlayerTable(a_playerData);
+
+    } catch (error) {
+      // 6. 오류가 발생하면, 콘솔에 기록하고 사용자에게 에러 토스트 알림을 보여줍니다.
+      console.error("데이터 불러오기 오류:", error);
+      showErrorToast("데이터를 불러오는 데 실패했습니다.");
+    } finally {
+      // 7. 성공하든 실패하든, 마지막에는 항상 로딩 화면을 숨깁니다.
+      hideLoader();
     }
+  }
 
     // 3. 테이블을 그리는 함수 (새로 추가)
     function buildPlayerTable(playerData) {
@@ -681,56 +692,74 @@
     /**
    * '유저 정보 기입' 팝업의 데이터를 Supabase에 저장하는 새로운 함수
    */
+    /**
+ * '유저 정보 기입' 팝업의 데이터를 Supabase에 저장하는 함수 (로더/알림 적용)
+ */
   async function addNewPlayer() {
+    // 1. 팝업의 각 입력창에서 값을 읽어옵니다.
     const nickname = document.getElementById('add-nickname').value;
     const main_position = document.getElementById('add-main-position').value;
     const sub_position = document.getElementById('add-sub-position').value;
     const current_tier = document.getElementById('add-current-tier').value;
     const peak_tier = document.getElementById('add-peak-tier').value;
 
+    // 2. 닉네임이 비어있는지 확인하고, 없으면 에러 알림을 표시합니다.
     if (!nickname) {
-      alert("닉네임은 필수 항목입니다.");
+      showErrorToast("닉네임은 필수 항목입니다.");
       return;
     }
-
-    // --- MMR 및 보정치 자동 계산 (수정됨) ---
-    const initialInternalTier = current_tier;
-    const baseMmr = getMmrByTier(initialInternalTier);
     
-    // '최고티어'와 '현티어'의 차이를 기반으로 보정치를 계산합니다.
-    const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
-    const currentTierIndex = TIER_ORDER.indexOf(current_tier);
-    let mmrAdjustment = 0;
-    if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
-        const tierDifference = peakTierIndex - currentTierIndex;
-        mmrAdjustment = tierDifference * 15; // 규칙: 1티어 차이당 15 MMR 보정
-    }
-    
-    // 최종 MMR = 기본 MMR + 보정치
-    const finalMmr = baseMmr + mmrAdjustment;
-    // -----------------------------
+    // 3. "추가하는 중..." 로딩 화면을 표시합니다.
+    showLoader("새 플레이어를 추가하는 중...");
 
-    const newPlayerData = {
-      nickname: nickname,
-      main_position: main_position,
-      sub_position: sub_position,
-      current_tier: current_tier,
-      peak_tier: peak_tier,
-      start_tier: current_tier,
-      internal_tier: initialInternalTier,
-      mmr: finalMmr, // 합산된 최종 MMR 저장
-      mmr_adj: mmrAdjustment, // 계산된 보정치 저장
-    };
+    try {
+      // 4. MMR 및 보정치를 자동으로 계산합니다.
+      const initialInternalTier = current_tier;
+      const baseMmr = getMmrByTier(initialInternalTier);
+      
+      const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
+      const currentTierIndex = TIER_ORDER.indexOf(current_tier);
+      let mmrAdjustment = 0;
+      if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
+          const tierDifference = peakTierIndex - currentTierIndex;
+          mmrAdjustment = tierDifference * 15;
+      }
+      const finalMmr = baseMmr + mmrAdjustment;
 
-    const { data, error } = await supabase.from('players').insert([newPlayerData]);
+      // 5. Supabase에 저장할 최종 데이터 객체를 만듭니다.
+      const newPlayerData = {
+        nickname: nickname,
+        main_position: main_position,
+        sub_position: sub_position,
+        current_tier: current_tier,
+        peak_tier: peak_tier,
+        start_tier: current_tier,
+        internal_tier: initialInternalTier,
+        mmr: finalMmr,
+        mmr_adj: mmrAdjustment,
+      };
 
-    if (error) {
-      console.error("데이터 추가 오류:", error);
-      onFailure(error);
-    } else {
-      alert("새로운 플레이어가 성공적으로 추가되었습니다!");
-      hidePopup();
+      // 6. Supabase에 데이터를 삽입(insert)합니다.
+      const { data, error } = await supabase
+        .from('players')
+        .insert([newPlayerData]);
+
+      if (error) {
+        throw error; // 오류가 발생하면 catch 블록으로 보냅니다.
+      }
+
+      // 7. 성공하면, 성공 토스트 알림을 보여주고 테이블을 새로고침합니다.
+      showSuccessToast("새로운 플레이어가 추가되었습니다!");
       getPlayerData();
+
+    } catch (error) {
+      // 8. 오류가 발생하면, 콘솔에 기록하고 에러 토스트 알림을 보여줍니다.
+      console.error("데이터 추가 오류:", error);
+      showErrorToast("데이터 추가에 실패했습니다: " + error.message);
+    } finally {
+      // 9. 성공하든 실패하든, 마지막에는 팝업과 로딩 화면을 숨깁니다.
+      hidePopup();
+      hideLoader();
     }
   }
 
@@ -798,111 +827,129 @@
     document.querySelector('.first-data-filed-detail').style.display = 'flex'; // '상세 정보' 팝업은 표시
   }
 
+  /**
+ * '수정 완료' 버튼 클릭 시, 모든 자동 계산 로-직을 수행하고
+ * Supabase 데이터를 업데이트하는 최종 함수
+ */
   async function handleUpdate() {
     // --- 1. 원본 데이터 확인 ---
     if (!currentPlayerOriginalData) {
-      alert("플레이어 원본 데이터를 불러오지 못했습니다. 다시 시도해주세요.");
+      showErrorToast("플레이어 원본 데이터를 불러오지 못했습니다.");
       return;
     }
 
-    // --- 2. 팝업에서 사용자가 수정한 값들 가져오기 ---
-    const newWins = Number(document.getElementById('detail-wins').value) || 0;
-    const newLosses = Number(document.getElementById('detail-losses').value) || 0;
-    const current_tier = document.getElementById('detail-current-tier').value;
-    const peak_tier = document.getElementById('detail-peak-tier').value;
-    
-    // --- 3. LP 및 티어 계산을 위한 변수 초기화 ---
-    const oldWins = Number(currentPlayerOriginalData.wins) || 0;
-    const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
-    let currentLp = Number(currentPlayerOriginalData.lp) || 0;
-    let internalTier = currentPlayerOriginalData.internal_tier || '아이언4';
-    let message = "플레이어 정보가 성공적으로 수정되었습니다.";
+    // --- 2. "수정하는 중..." 로딩 화면 표시 ---
+    showLoader("플레이어 정보를 수정하는 중...");
 
-    // --- 4. LP 및 티어 자동 변동 로직 ---
-    const totalGames = newWins + newLosses;
-    if (totalGames >= 5) {
-      const winDifference = newWins - oldWins;
-      const lossDifference = newLosses - oldLosses;
+    try {
+      // --- 3. 팝업에서 사용자가 수정한 값들 가져오기 ---
+      const newWins = Number(document.getElementById('detail-wins').value) || 0;
+      const newLosses = Number(document.getElementById('detail-losses').value) || 0;
+      const current_tier = document.getElementById('detail-current-tier').value;
+      const peak_tier = document.getElementById('detail-peak-tier').value;
+      
+      // --- 4. LP 및 티어 계산을 위한 변수 초기화 ---
+      const oldWins = Number(currentPlayerOriginalData.wins) || 0;
+      const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
+      let currentLp = Number(currentPlayerOriginalData.lp) || 0;
+      let internalTier = currentPlayerOriginalData.internal_tier || '아이언4';
+      
+      // --- 5. LP 및 티어 자동 변동 로직 ---
+      const totalGames = newWins + newLosses;
+      if (totalGames >= 5) {
+        const winDifference = newWins - oldWins;
+        const lossDifference = newLosses - oldLosses;
 
-      if (winDifference > 0) { // 승리 기록
-        for (let i = 0; i < winDifference; i++) {
-          const tempWinrate = ((oldWins + i) / (oldWins + i + oldLosses) * 100) || 50;
-          const winrateKey = Math.floor(tempWinrate / 5) * 5;
-          const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
-          currentLp += lpChange;
+        if (winDifference > 0) { // 승리 기록
+          for (let i = 0; i < winDifference; i++) {
+            const tempWinrate = ((oldWins + i) / (oldWins + i + oldLosses) * 100) || 50;
+            const winrateKey = Math.floor(tempWinrate / 5) * 5;
+            const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
+            currentLp += lpChange;
+          }
+        }
+        if (lossDifference > 0) { // 패배 기록
+          for (let i = 0; i < lossDifference; i++) {
+            const tempWinrate = (newWins / (newWins + oldLosses - i) * 100) || 50;
+            const winrateKey = Math.floor(tempWinrate / 5) * 5;
+            const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
+            currentLp += lpChange;
+          }
+        }
+
+        // 승급/강등 처리
+        while (currentLp >= 100) {
+          const currentTierIndex = TIER_ORDER.indexOf(internalTier);
+          if (currentTierIndex < TIER_ORDER.length - 1) {
+            internalTier = TIER_ORDER[currentTierIndex + 1];
+            currentLp -= 100;
+          } else { currentLp = 100; break; }
+        }
+        while (currentLp < 0) {
+          const currentTierIndex = TIER_ORDER.indexOf(internalTier);
+          if (currentTierIndex > 0) {
+            internalTier = TIER_ORDER[currentTierIndex - 1];
+            currentLp += 100;
+          } else { currentLp = 0; break; }
         }
       }
-      if (lossDifference > 0) { // 패배 기록
-        for (let i = 0; i < lossDifference; i++) {
-          const tempWinrate = (newWins / (newWins + oldLosses - i) * 100) || 50;
-          const winrateKey = Math.floor(tempWinrate / 5) * 5;
-          const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
-          currentLp += lpChange;
-        }
+
+      // --- 6. MMR 보정치 자동 계산 ---
+      const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
+      const currentTierIndex = TIER_ORDER.indexOf(current_tier);
+      let mmrAdjustment = 0;
+      if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
+          const tierDifference = peakTierIndex - currentTierIndex;
+          mmrAdjustment = tierDifference * 15;
       }
 
-      // 승급/강등 처리
-      while (currentLp >= 100) {
-        const currentTierIndex = TIER_ORDER.indexOf(internalTier);
-        if (currentTierIndex < TIER_ORDER.length - 1) {
-          internalTier = TIER_ORDER[currentTierIndex + 1];
-          currentLp -= 100;
-        } else { currentLp = 100; break; }
+      // --- 7. 최종 데이터 정리 ---
+      const finalWinrate = totalGames > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
+      const baseMmr = getMmrByTier(internalTier);
+      const finalMmr = baseMmr + mmrAdjustment;
+
+      const updatedData = {
+        main_position: document.getElementById('detail-main-position').value,
+        sub_position: document.getElementById('detail-sub-position').value,
+        current_tier: current_tier,
+        peak_tier: peak_tier,
+        start_tier: document.getElementById('detail-start-tier').value,
+        title: document.getElementById('detail-title').value,
+        wins: newWins,
+        losses: newLosses,
+        winrate: finalWinrate,
+        internal_tier: internalTier,
+        mmr: finalMmr,
+        mmr_adj: mmrAdjustment,
+        lp: currentLp,
+      };
+
+      // --- 8. Supabase에 최종 데이터 업데이트 ---
+      const { data, error } = await supabase
+        .from('players')
+        .update(updatedData)
+        .eq('nickname', currentPlayerOriginalData.nickname);
+
+      if (error) {
+        throw error;
       }
-      while (currentLp < 0) {
-        const currentTierIndex = TIER_ORDER.indexOf(internalTier);
-        if (currentTierIndex > 0) {
-          internalTier = TIER_ORDER[currentTierIndex - 1];
-          currentLp += 100;
-        } else { currentLp = 0; break; }
+
+      // --- 9. 성공 처리 ---
+      let message = "플레이어 정보가 수정되었습니다!";
+      if (totalGames < 5 && ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0)) {
+          message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
       }
-    } else if ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0) {
-        message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
-    }
-
-    // --- 5. MMR 보정치 자동 계산 ---
-    const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
-    const currentTierIndex = TIER_ORDER.indexOf(current_tier);
-    let mmrAdjustment = 0;
-    if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
-        const tierDifference = peakTierIndex - currentTierIndex;
-        mmrAdjustment = tierDifference * 15; // 규칙: 1티어 차이당 15 MMR 보정
-    }
-
-    // --- 6. 최종 데이터 정리 ---
-    const finalWinrate = totalGames > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
-    const baseMmr = getMmrByTier(internalTier); // '내전 티어' 기준 기본 MMR
-    const finalMmr = baseMmr + mmrAdjustment; // 최종 MMR = 기본 MMR + 보정치
-
-    const updatedData = {
-      main_position: document.getElementById('detail-main-position').value,
-      sub_position: document.getElementById('detail-sub-position').value,
-      current_tier: current_tier,
-      peak_tier: peak_tier,
-      start_tier: document.getElementById('detail-start-tier').value,
-      title: document.getElementById('detail-title').value,
-      wins: newWins,
-      losses: newLosses,
-      winrate: finalWinrate,
-      internal_tier: internalTier,
-      mmr: finalMmr, // 합산된 최종 MMR 저장
-      mmr_adj: mmrAdjustment, // 계산된 보정치 저장
-      lp: currentLp,
-    };
-
-    // --- 7. Supabase에 최종 데이터 업데이트 ---
-    const { data, error } = await supabase
-      .from('players')
-      .update(updatedData)
-      .eq('nickname', currentPlayerOriginalData.nickname);
-
-    if (error) {
-      console.error("데이터 수정 오류:", error);
-      onFailure(error);
-    } else {
-      alert(message);
-      hidePopup();
+      showSuccessToast(message);
       getPlayerData();
+
+    } catch (error) {
+      // --- 10. 실패 처리 ---
+      console.error("데이터 수정 오류:", error);
+      showErrorToast("정보 수정에 실패했습니다: " + error.message);
+    } finally {
+      // --- 11. 마무리 작업 ---
+      hidePopup();
+      hideLoader();
     }
   }
    // 페이지가 모두 로드된 후 실행
@@ -943,34 +990,53 @@
     // 띄어쓰기 없는 한글 티어를 바로 키로 사용
     return MMR_DATA[tierString.replace(/\s+/g, '')] || 1500;
   }
+  /**
+ * '유저 삭제' 버튼 클릭 시 호출되는 함수 (로더/알림 적용)
+ */
   async function handleDelete() {
-    // 1. 현재 상세정보 팝업에 표시된 닉네임을 가져옵니다.
     const nickname = document.getElementById('detail-nickname').value;
     if (!nickname) {
-      alert('삭제할 플레이어 정보가 올바르게 로드되지 않았습니다.');
+      showErrorToast('삭제할 플레이어 정보가 올바르게 로드되지 않았습니다.');
       return;
     }
 
-    // 2. 사용자에게 정말 삭제할 것인지 재확인합니다. (실수 방지)
+    // confirm 대신, 더 나은 UI의 커스텀 확인창을 사용하는 것을 추천하지만,
+    // 우선 기존 confirm을 유지합니다.
     const message = `정말로 '${nickname}' 님의 데이터를 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
     
     if (confirm(message)) {
-      // 3. 사용자가 '확인'을 누르면, Supabase에 삭제 명령을 보냅니다.
-      const { error } = await supabase
-        .from('players')
-        .delete()
-        .eq('nickname', nickname);
+      // 1. "삭제하는 중..." 로딩 화면을 표시합니다.
+      showLoader("플레이어를 삭제하는 중...");
 
-      if (error) {
+      try {
+        // 2. Supabase에 삭제 명령을 보냅니다.
+        const { error } = await supabase
+          .from('players')
+          .delete()
+          .eq('nickname', nickname);
+
+        if (error) {
+          throw error;
+        }
+
+        // 3. 성공하면, 성공 토스트 알림을 보여주고 테이블을 새로고침합니다.
+        showSuccessToast(`'${nickname}' 님의 데이터가 삭제되었습니다.`);
+        getPlayerData();
+
+      } catch (error) {
+        // 4. 오류가 발생하면, 콘솔에 기록하고 에러 토스트 알림을 보여줍니다.
         console.error("데이터 삭제 오류:", error);
-        onFailure(error);
-      } else {
-        alert(`'${nickname}' 님의 데이터가 성공적으로 삭제되었습니다.`);
-        hidePopup(); // 팝업 닫기
-        getPlayerData(); // 메인 테이블을 새로고침하여 삭제된 결과를 즉시 반영
+        showErrorToast("데이터 삭제에 실패했습니다: " + error.message);
+      } finally {
+        // 5. 성공하든 실패하든, 마지막에는 팝업과 로딩 화면을 숨깁니다.
+        hidePopup();
+        hideLoader();
       }
     }
   }
+
+
+  
   </script>
 </body>
 </html>

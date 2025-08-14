@@ -94,3 +94,38 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
     95: [58, -30],
     100: [60, -30]
   };
+
+// 로딩 오버레이를 보여주는 함수
+function showLoader(message = "처리 중...") {
+  document.getElementById('loader-text').innerText = message;
+  document.getElementById('loader-overlay').style.display = 'flex';
+}
+
+// 로딩 오버레이를 숨기는 함수
+function hideLoader() {
+  document.getElementById('loader-overlay').style.display = 'none';
+}
+
+// 성공 토스트 알림을 보여주는 함수
+function showSuccessToast(message) {
+  Toastify({
+    text: message,
+    duration: 3000,
+    close: true,
+    gravity: "top", // `top` or `bottom`
+    position: "right", // `left`, `center` or `right`
+    backgroundColor: "linear-gradient(to right, #00b09b, #96c93d)",
+  }).showToast();
+}
+
+// 실패 토스트 알림을 보여주는 함수
+function showErrorToast(message) {
+  Toastify({
+    text: message,
+    duration: 3000,
+    close: true,
+    gravity: "top",
+    position: "right",
+    backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
+  }).showToast();
+}
