@@ -722,6 +722,18 @@
     showLoader("새 플레이어를 추가하는 중...");
 
     try {
+      // 3. 닉네임 중복 체크
+      const { data: existingPlayers, error: fetchError } = await supabase
+        .from('players')
+        .select('id')
+        .eq('nickname', nickname);
+
+      if (fetchError) throw fetchError;
+
+      if (existingPlayers && existingPlayers.length > 0) {
+        showErrorToast("이미 존재하는 닉네임입니다.");
+        return; // 중복이면 추가 진행 안 함
+      }
       // 4. MMR 및 보정치를 자동으로 계산합니다.
       const initialInternalTier = current_tier;
       const baseMmr = getMmrByTier(initialInternalTier);
