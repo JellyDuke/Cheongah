@@ -814,14 +814,16 @@
     const winDifference = newWins - oldWins;
     const lossDifference = newLosses - oldLosses;
 
-    // --- 4. LP 및 티어 계산 시작 ---
+    // --- 4. LP 및 티어 계산을 위한 변수 초기화 ---
     let currentLp = Number(currentPlayerOriginalData.lp) || 0;
     let internalTier = currentPlayerOriginalData.internal_tier || '아이언4';
+    let message = "플레이어 정보가 성공적으로 수정되었습니다."; // 기본 성공 메시지
 
-    // 5판 이상 플레이했을 경우에만 LP/티어 변동
-    if ((newWins + newLosses) >= 5) {
-      // 승리 기록만큼 LP 계산 반복
-      if (winDifference > 0) {
+    // --- 5. 총 게임 수 확인 및 LP/티어 변동 로직 실행 ---
+    const totalGames = newWins + newLosses;
+    if (totalGames >= 5) {
+      // 5판 이상 플레이했을 경우에만 LP/티어 변동
+      if (winDifference > 0) { // 승리 기록
         for (let i = 0; i < winDifference; i++) {
           const tempWinrate = ((oldWins + i) / (oldWins + i + oldLosses) * 100) || 50;
           const winrateKey = Math.floor(tempWinrate / 5) * 5;
@@ -829,8 +831,7 @@
           currentLp += lpChange;
         }
       }
-      // 패배 기록만큼 LP 계산 반복
-      if (lossDifference > 0) {
+      if (lossDifference > 0) { // 패배 기록
         for (let i = 0; i < lossDifference; i++) {
           const tempWinrate = (newWins / (newWins + oldLosses - i) * 100) || 50;
           const winrateKey = Math.floor(tempWinrate / 5) * 5;
@@ -845,20 +846,23 @@
         if (currentTierIndex < TIER_ORDER.length - 1) {
           internalTier = TIER_ORDER[currentTierIndex + 1];
           currentLp -= 100;
-        } else { currentLp = 100; break; } // 최고 티어 도달
+        } else { currentLp = 100; break; }
       }
       while (currentLp < 0) {
         const currentTierIndex = TIER_ORDER.indexOf(internalTier);
         if (currentTierIndex > 0) {
           internalTier = TIER_ORDER[currentTierIndex - 1];
           currentLp += 100;
-        } else { currentLp = 0; break; } // 최하위 티어 도달
+        } else { currentLp = 0; break; }
       }
+    } else if (winDifference > 0 || lossDifference > 0) {
+        // 5판 미만인데 승/패가 변경된 경우, LP는 변경하지 않고 메시지만 추가
+        message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
     }
 
-    // --- 5. 최종 데이터 정리 ---
-    const finalWinrate = (newWins + newLosses) > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
-    const finalMmr = getMmrByTier(internalTier); // 새 티어에 맞는 MMR 재계산
+    // --- 6. 최종 데이터 정리 ---
+    const finalWinrate = totalGames > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
+    const finalMmr = getMmrByTier(internalTier);
 
     const updatedData = {
       main_position: document.getElementById('detail-main-position').value,
@@ -867,7 +871,6 @@
       peak_tier: document.getElementById('detail-peak-tier').value,
       start_tier: document.getElementById('detail-start-tier').value,
       title: document.getElementById('detail-title').value,
-      // 자동 계산된 최종 값들
       wins: newWins,
       losses: newLosses,
       winrate: finalWinrate,
@@ -876,7 +879,7 @@
       lp: currentLp,
     };
 
-    // --- 6. Supabase에 최종 데이터 업데이트 ---
+    // --- 7. Supabase에 최종 데이터 업데이트 ---
     const { data, error } = await supabase
       .from('players')
       .update(updatedData)
@@ -886,7 +889,7 @@
       console.error("데이터 수정 오류:", error);
       onFailure(error);
     } else {
-      alert("플레이어 정보가 성공적으로 수정되었습니다!");
+      alert(message); // 수정된 메시지 사용
       hidePopup();
       getPlayerData();
     }
