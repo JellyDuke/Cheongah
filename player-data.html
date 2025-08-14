@@ -60,53 +60,53 @@
                   <div class="w-layout-vflex flex-area-box">
                     <div class="w-layout-vflex flex-box-data">
                       <div class="block-box">
-                        <div>닉네임</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="닉네임을 입력해주세요." type="text" id="field" required="">
+                        <div>닉네임</div><input class="player-data-input w-input" type="text" id="detail-nickname" readonly>
                       </div>
                       <div class="block-box">
-                        <div>주포지션</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="주포지션을 입력해주세요." type="text" id="field" required="">
+                        <div>주포지션</div><input class="player-data-input w-input" type="text" id="detail-main-position">
                       </div>
                       <div class="block-box">
-                        <div>서브포지션</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="서브 포지션을 입력해주세요." type="text" id="field" required="">
+                        <div>서브포지션</div><input class="player-data-input w-input" type="text" id="detail-sub-position" >
                       </div>
                       <div class="block-box">
-                        <div>현티어</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 언랭, 골드4" type="text" id="field" required="">
+                        <div>현티어</div><input class="player-data-input w-input" type="text" id="detail-current-tier">
                       </div>
                       <div class="block-box">
-                        <div>최고티어</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 골드3" type="text" id="field" required="">
+                        <div>최고티어</div><input class="player-data-input w-input" type="text" id="detail-peak-tier">
                       </div>
                       <div class="block-box">
-                        <div>시작 티어</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 골드3" type="text" id="field" required="">
+                        <div>시작 티어</div><input class="player-data-input w-input" type="text" id="detail-start-tier" readonly >
                       </div>
                       <div class="block-box">
-                        <div>내전 티어</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 골드3" type="text" id="field" required="">
+                        <div>내전 티어</div><input class="player-data-input w-input" type="text" id="detail-internal-tier" readonly >
                       </div>
                     </div>
                     <div class="w-layout-vflex flex-box-data">
                       <div class="block-box">
-                        <div>승률</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="58%" type="text" id="field" required="">
+                        <div>승률</div><input class="player-data-input w-input" type="text" id="detail-winrate" readonly>
                       </div>
                       <div class="block-box">
-                        <div>승</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 골드3" type="text" id="field" required="">
+                        <div>승</div><input class="player-data-input w-input" type="number" id="detail-wins">
                       </div>
                       <div class="block-box">
-                        <div>패</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="ex) 골드3" type="text" id="field" required="">
+                        <div>패</div><input class="player-data-input w-input" type="number" id="detail-losses">
                       </div>
                       <div class="block-box">
-                        <div>내전 MMR</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="1784" type="text" id="field" required="">
+                        <div>내전 MMR</div><input class="player-data-input w-input" type="number" id="detail-mmr" readonly >
                       </div>
                       <div class="block-box">
-                        <div>내전 MMR 보정값</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="1784" type="text" id="field" required="">
+                        <div>내전 MMR 보정값</div><input class="player-data-input w-input" type="number" id="detail-mmr-adj"readonly >
                       </div>
                       <div class="block-box">
-                        <div>현재 LP</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="1784" type="text" id="field" required="">
+                        <div>현재 LP</div><input class="player-data-input w-input" type="number" id="detail-lp" readonly >
                       </div>
                       <div class="block-box">
-                        <div>칭호</div><input class="player-data-input w-input" maxlength="256" name="field" data-name="Field" placeholder="1784" type="text" id="field" required="">
+                        <div>칭호</div><input class="player-data-input w-input" type="text" id="detail-title">
                       </div>
                     </div>
                   </div>
                   <div class="w-layout-vflex flex-btn-box-popup">
-                    <a href="#" class="check-btn cancle w-button">취소</a>
+                    <a href="#" onclick="hideDetailsPopup()" class="check-btn cancle w-button">취소</a>
                     <a href="#" class="check-btn check w-button">확인</a>
                   </div>
                   <a href="#" class="remove-player-btn w-button">유저 삭제</a>
@@ -735,6 +735,58 @@
       alert("오류가 발생했습니다: " + error.message);
     }
 
+    /**
+ * '상세정보' 버튼 클릭 시 호출되는 함수
+ * @param {string} nickname - 테이블에서 클릭된 플레이어의 닉네임
+ */
+  async function showPlayerDetails(nickname) {
+    // Supabase의 'players' 테이블에서 닉네임이 일치하는(eq) 첫 번째 데이터를 찾습니다.
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .eq('nickname', nickname)
+      .single(); // .single()은 결과가 하나일 때 사용합니다.
+
+    if (error) {
+      console.error("상세 정보 조회 오류:", error);
+      onFailure(error);
+    } else if (data) {
+      // 데이터를 성공적으로 찾았으면, 팝업을 채우는 함수를 호출합니다.
+      populateDetailsPopup(data);
+    }
+  }
+
+  /**
+   * 서버에서 받은 데이터로 '상세정보' 팝업의 입력창을 채우는 함수
+   */
+  function populateDetailsPopup(playerData) {
+    // 승/패 데이터를 기반으로 승률을 다시 계산하여 표시합니다.
+    const wins = Number(playerData.wins) || 0;
+    const losses = Number(playerData.losses) || 0;
+    const totalGames = wins + losses;
+    const formattedWinrate = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
+
+    // 각 input 요소에 데이터 할당
+    document.getElementById('detail-nickname').value = playerData.nickname || '';
+    document.getElementById('detail-main-position').value = playerData.main_position || '';
+    document.getElementById('detail-sub-position').value = playerData.sub_position || '';
+    document.getElementById('detail-current-tier').value = playerData.current_tier || '';
+    document.getElementById('detail-peak-tier').value = playerData.peak_tier || '';
+    document.getElementById('detail-start-tier').value = playerData.start_tier || '';
+    document.getElementById('detail-internal-tier').value = playerData.internal_tier || '';
+    document.getElementById('detail-winrate').value = formattedWinrate;
+    document.getElementById('detail-wins').value = wins;
+    document.getElementById('detail-losses').value = losses;
+    document.getElementById('detail-mmr').value = playerData.mmr || 1500;
+    document.getElementById('detail-mmr-adj').value = playerData.mmr_adj || 0;
+    document.getElementById('detail-lp').value = playerData.lp || 0;
+    document.getElementById('detail-title').value = playerData.title || '';
+
+    // 팝업창들을 화면에 표시
+    document.querySelector('.popupframe').style.display = 'flex';
+    document.querySelector('.first-data-filed').style.display = 'none'; // '정보 기입' 팝업은 숨김
+    document.querySelector('.first-data-filed-detail').style.display = 'flex'; // '상세 정보' 팝업은 표시
+  }
     // 페이지가 모두 로드된 후 실행
     document.addEventListener('DOMContentLoaded', function() {
       // 1. 페이지가 열리면 바로 전체 플레이어 목록을 불러옵니다.
@@ -749,6 +801,16 @@
         });
       }
     });
+
+  /**
+ * 상세정보 팝업의 '취소' 버튼 클릭 시 팝업을 닫는 함수
+ */
+function hideDetailsPopup() {
+    const popup = document.querySelector('.popupframe');
+      const firstField = document.querySelector('.popupframe .first-data-filed-detail');
+      popup.style.display = 'none';
+      firstField.style.display = 'none';
+}
   </script>
 </body>
 </html>
