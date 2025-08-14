@@ -570,12 +570,6 @@
               </div>
             </div>
           </form>
-          <div class="w-form-done">
-            <div>Thank you! Your submission has been received!</div>
-          </div>
-          <div class="w-form-fail">
-            <div>Oops! Something went wrong while submitting the form.</div>
-          </div>
         </div>
       </div>
     </div>
@@ -588,5 +582,56 @@
   <script src="js/webflow.js" type="text/javascript"></script>
   <!-- Supabase 라이브러리 추가 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    /**
+   * Supabase에서 모든 플레이어 데이터를 가져오는 새로운 함수
+   */
+  async function getPlayerData() {
+    // 'players' 테이블에서 모든(*) 데이터를, 생성된 시간(created_at)을 기준으로 오름차순 정렬하여 가져옵니다.
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      // 오류가 발생하면 콘솔에 기록하고, 사용자에게 알립니다.
+      console.error("데이터 불러오기 오류:", error);
+      onFailure(error); // 기존 오류 처리 함수 호출
+    } else {
+      // Supabase는 데이터를 객체 배열( [{nickname: 'a'}, {nickname: 'b'}] )로 반환합니다.
+      // 기존 buildPlayerTable 함수가 이해하는 2차원 배열( [['a'], ['b']] )로 변환해줍니다.
+      const a_playerData = data.map(player => [
+          player.nickname,
+          player.main_position,
+          player.sub_position,
+          player.current_tier,
+          player.peak_tier,
+          player.start_tier,
+          player.internal_tier,
+          player.winrate,
+          player.wins,
+          player.losses,
+          player.mmr,
+          player.mmr_adj,
+          player.lp,
+          player.title
+      ]);
+      // 변환된 데이터로 테이블을 그립니다.
+      buildPlayerTable(a_playerData);
+    }
+  }
+
+  // 페이지가 모두 로드된 후 실행되는 부분 (새로운 방식)
+  document.addEventListener('DOMContentLoaded', function() {
+    // Supabase에서 데이터를 가져오는 함수를 호출합니다.
+    getPlayerData();
+
+    // '유저 정보 기입' 팝업의 '확인' 버튼 이벤트 리스너 (이 부분은 다음 단계에서 수정할 예정입니다.)
+    const submitBtn = document.getElementById('submit-button');
+    if (submitBtn) {
+      // submitBtn.addEventListener('click', submitPlayerData);
+    }
+  });
+  </script>
 </body>
 </html>
