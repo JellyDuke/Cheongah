@@ -12,7 +12,7 @@
     if (!accessToken) {
       // 출입증이 없으면 쫓아냅니다.
       alert('접근 권한이 없습니다. 먼저 로그인하세요.');
-      window.location.href = 'index.html'; // 로그인 페이지로 리다이렉트
+      window.location.href = 'password.html'; // 로그인 페이지로 리다이렉트
       return;
     }
 
@@ -30,13 +30,13 @@
     } catch (error) {
       console.error('세션 설정 오류:', error);
       alert('인증 정보가 유효하지 않습니다.');
-      window.location.href = 'index.html';
+      window.location.href = 'password.html';
     }
   })();
 
   async function fetchData() {
     // 이제 이 요청은 '관리자' 권한으로 전송됩니다.
-    const { data, error } = await supabase.from('your_table_name').select('*');
+    const { data, error } = await supabase.from('players').select('*');
     if (error) {
       console.error('데이터 조회 실패:', error);
     } else {
