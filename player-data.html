@@ -885,11 +885,39 @@
 
     try {
       // --- 3. 팝업에서 사용자가 수정한 값들 가져오기 ---
+      const newNickname = document.getElementById('detail-nickname').value;
       const newWins = Number(document.getElementById('detail-wins').value) || 0;
       const newLosses = Number(document.getElementById('detail-losses').value) || 0;
       const current_tier = document.getElementById('detail-current-tier').value;
       const peak_tier = document.getElementById('detail-peak-tier').value;
+
+      // 닉네임이 비어있는지 확인
+      if (!newNickname) {
+        showErrorToast("닉네임은 필수 항목입니다.");
+        hideLoader();
+        return;
+      }
       
+      // --- 닉네임 변경 시 중복 확인 로직 ---
+      if (newNickname !== currentPlayerOriginalData.nickname) {
+        const { data: existingPlayer, error: fetchError } = await supabase
+          .from('players')
+          .select('id')
+          .eq('nickname', newNickname)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          // PGRST116은 '결과 행 없음' 오류로, 중복이 없다는 뜻이므로 정상입니다.
+          throw fetchError;
+        }
+
+        if (existingPlayer) {
+          showErrorToast("이미 존재하는 닉네임입니다.");
+          hideLoader();
+          return;
+        }
+      }
+
       // --- 4. LP 및 티어 계산을 위한 변수 초기화 ---
       const oldWins = Number(currentPlayerOriginalData.wins) || 0;
       const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
@@ -936,34 +964,28 @@
         }
       }
 
-      // ⭐ --- 6. 새로운 MMR 보정치 자동 계산 로직 --- ⭐
+      // --- 6. 동적 MMR 보정치 자동 계산 로직 ---
       let mmrAdjustment = 0;
-      // 기본 MMR은 항상 위에서 계산된 '내전 티어(internalTier)'를 기준으로 합니다.
       const baseMmr = getMmrByTier(internalTier); 
       
       const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
       const internalTierIndex = TIER_ORDER.indexOf(internalTier);
 
-      // '최고 티어'가 '내전 티어'보다 높을 경우에만 "잠재력 보너스"를 계산합니다.
       if (peakTierIndex > -1 && internalTierIndex > -1 && peakTierIndex > internalTierIndex) {
-        // 격차 = 최고 티어 인덱스 - 내전 티어 인덱스
         const tierDifference = peakTierIndex - internalTierIndex;
-        // 격차에 가중치(15)를 곱하여 보정치를 부여합니다.
         mmrAdjustment = tierDifference * 15;
       }
-      // (만약 내전 티어가 최고 티어와 같거나 높아지면, 보정치는 자동으로 0이 됩니다.)
 
       // --- 7. 최종 데이터 정리 ---
-      const finalWinrate = totalGames > 0 ? ((newWins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
-      // 최종 MMR = 내전 티어 기준 기본 MMR + 잠재력 보너스
       const finalMmr = baseMmr + mmrAdjustment;
-
+      const finalWinrate = totalGames > 0 ? ((newWins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
+      
       const updatedData = {
+        nickname: newNickname,
         main_position: document.getElementById('detail-main-position').value,
         sub_position: document.getElementById('detail-sub-position').value,
         current_tier: current_tier,
         peak_tier: peak_tier,
-        start_tier: document.getElementById('detail-start-tier').value,
         title: document.getElementById('detail-title').value,
         wins: newWins,
         losses: newLosses,
@@ -975,14 +997,13 @@
       };
 
       // --- 8. Supabase에 최종 데이터 업데이트 ---
-      const { data, error } = await supabase
+      // 업데이트할 행을 찾을 때는 '기존 닉네임'을 사용합니다.
+      const { error } = await supabase
         .from('players')
         .update(updatedData)
-        .eq('nickname', currentPlayerOriginalData.nickname);
-
-      if (error) {
-        throw error;
-      }
+        .eq('nickname', currentPlayerOriginalData.nickname); 
+      
+      if (error) throw error;
 
       // --- 9. 성공 처리 ---
       let message = "플레이어 정보가 수정되었습니다!";
