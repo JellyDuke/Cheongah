@@ -912,7 +912,7 @@
         }
         if (lossDifference > 0) { // 패배 기록
           for (let i = 0; i < lossDifference; i++) {
-            const tempWinrate = (newWins / (newWins + oldLosses - i) * 100) || 50;
+            const tempWinrate = (newWins / (newWins + oldLosses + lossDifference - 1 - i) * 100) || 50;
             const winrateKey = Math.floor(tempWinrate / 5) * 5;
             const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
             currentLp += lpChange;
@@ -936,18 +936,26 @@
         }
       }
 
-      // --- 6. MMR 보정치 자동 계산 ---
-      const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
-      const currentTierIndex = TIER_ORDER.indexOf(current_tier);
+      // ⭐ --- 6. 새로운 MMR 보정치 자동 계산 로직 --- ⭐
       let mmrAdjustment = 0;
-      if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
-          const tierDifference = peakTierIndex - currentTierIndex;
-          mmrAdjustment = tierDifference * 15;
+      // 기본 MMR은 항상 위에서 계산된 '내전 티어(internalTier)'를 기준으로 합니다.
+      const baseMmr = getMmrByTier(internalTier); 
+      
+      const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
+      const internalTierIndex = TIER_ORDER.indexOf(internalTier);
+
+      // '최고 티어'가 '내전 티어'보다 높을 경우에만 "잠재력 보너스"를 계산합니다.
+      if (peakTierIndex > -1 && internalTierIndex > -1 && peakTierIndex > internalTierIndex) {
+        // 격차 = 최고 티어 인덱스 - 내전 티어 인덱스
+        const tierDifference = peakTierIndex - internalTierIndex;
+        // 격차에 가중치(15)를 곱하여 보정치를 부여합니다.
+        mmrAdjustment = tierDifference * 15;
       }
+      // (만약 내전 티어가 최고 티어와 같거나 높아지면, 보정치는 자동으로 0이 됩니다.)
 
       // --- 7. 최종 데이터 정리 ---
-      const finalWinrate = totalGames > 0 ? ((newWins / (newWins + newLosses)) * 100).toFixed(1) + '%' : 'N/A';
-      const baseMmr = getMmrByTier(internalTier);
+      const finalWinrate = totalGames > 0 ? ((newWins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
+      // 최종 MMR = 내전 티어 기준 기본 MMR + 잠재력 보너스
       const finalMmr = baseMmr + mmrAdjustment;
 
       const updatedData = {
@@ -979,7 +987,7 @@
       // --- 9. 성공 처리 ---
       let message = "플레이어 정보가 수정되었습니다!";
       if (totalGames < 5 && ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0)) {
-          message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
+        message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
       }
       showSuccessToast(message);
       getPlayerData();
@@ -990,7 +998,7 @@
       showErrorToast("정보 수정에 실패했습니다: " + error.message);
     } finally {
       // --- 11. 마무리 작업 ---
-      hidePopup();
+      hideDetailsPopup();
       hideLoader();
     }
   }
