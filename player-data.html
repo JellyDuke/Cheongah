@@ -874,31 +874,27 @@
  * Supabase 데이터를 업데이트하는 최종 함수
  */
   async function handleUpdate() {
-    // --- 1. 원본 데이터 확인 ---
     if (!currentPlayerOriginalData) {
       showErrorToast("플레이어 원본 데이터를 불러오지 못했습니다.");
       return;
     }
 
-    // --- 2. "수정하는 중..." 로딩 화면 표시 ---
     showLoader("플레이어 정보를 수정하는 중...");
 
     try {
-      // --- 3. 팝업에서 사용자가 수정한 값들 가져오기 ---
+      // --- 1. 팝업에서 사용자가 수정한 모든 값 가져오기 ---
       const newNickname = document.getElementById('detail-nickname').value;
       const newWins = Number(document.getElementById('detail-wins').value) || 0;
       const newLosses = Number(document.getElementById('detail-losses').value) || 0;
       const current_tier = document.getElementById('detail-current-tier').value;
       const peak_tier = document.getElementById('detail-peak-tier').value;
 
-      // 닉네임이 비어있는지 확인
+      // 닉네임이 비어있는지 먼저 확인
       if (!newNickname) {
-        showErrorToast("닉네임은 필수 항목입니다.");
-        hideLoader();
-        return;
+        throw new Error("닉네임은 필수 항목입니다.");
       }
       
-      // --- 닉네임 변경 시 중복 확인 로직 ---
+      // --- 2. 닉네임 변경 시 중복 확인 ---
       if (newNickname !== currentPlayerOriginalData.nickname) {
         const { data: existingPlayer, error: fetchError } = await supabase
           .from('players')
@@ -906,44 +902,41 @@
           .eq('nickname', newNickname)
           .single();
 
-        if (fetchError && fetchError.code !== 'PGRST116') {
-          // PGRST116은 '결과 행 없음' 오류로, 중복이 없다는 뜻이므로 정상입니다.
+        if (fetchError && fetchError.code !== 'PGRST116') { // 'PGRST116'은 결과 없음 오류(정상)
           throw fetchError;
         }
-
         if (existingPlayer) {
-          showErrorToast("이미 존재하는 닉네임입니다.");
-          hideLoader();
-          return;
+          throw new Error("이미 존재하는 닉네임입니다.");
         }
       }
 
-      // --- 4. LP 및 티어 계산을 위한 변수 초기화 ---
+      // --- 3. LP 및 티어 계산 ---
       const oldWins = Number(currentPlayerOriginalData.wins) || 0;
       const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
       let currentLp = Number(currentPlayerOriginalData.lp) || 0;
-      let internalTier = currentPlayerOriginalData.internal_tier || '아이언4';
+      let internalTier = currentPlayerOriginalData.internal_tier || current_tier;
       
-      // --- 5. LP 및 티어 자동 변동 로직 ---
       const totalGames = newWins + newLosses;
       if (totalGames >= 5) {
         const winDifference = newWins - oldWins;
         const lossDifference = newLosses - oldLosses;
 
-        if (winDifference > 0) { // 승리 기록
+        // 승리 기록만큼 LP 계산
+        if (winDifference > 0) {
           for (let i = 0; i < winDifference; i++) {
-            const tempWinrate = ((oldWins + i) / (oldWins + i + oldLosses) * 100) || 50;
+            const tempTotalGames = oldWins + i + oldLosses;
+            const tempWinrate = tempTotalGames > 0 ? ((oldWins + i) / tempTotalGames * 100) : 50;
             const winrateKey = Math.floor(tempWinrate / 5) * 5;
-            const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
-            currentLp += lpChange;
+            currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
           }
         }
-        if (lossDifference > 0) { // 패배 기록
+        // 패배 기록만큼 LP 계산 (수정된 로직)
+        if (lossDifference > 0) {
           for (let i = 0; i < lossDifference; i++) {
-            const tempWinrate = (newWins / (newWins + oldLosses + lossDifference - 1 - i) * 100) || 50;
+            const tempTotalGames = newWins + oldLosses + i;
+            const tempWinrate = tempTotalGames > 0 ? (newWins / tempTotalGames * 100) : 50;
             const winrateKey = Math.floor(tempWinrate / 5) * 5;
-            const lpChange = LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
-            currentLp += lpChange;
+            currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
           }
         }
 
@@ -964,19 +957,15 @@
         }
       }
 
-      // --- 6. 동적 MMR 보정치 자동 계산 로직 ---
-      let mmrAdjustment = 0;
-      const baseMmr = getMmrByTier(internalTier); 
-      
+      // --- 4. MMR 보정치 및 최종 데이터 정리 ---
       const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
       const internalTierIndex = TIER_ORDER.indexOf(internalTier);
-
+      let mmrAdjustment = 0;
       if (peakTierIndex > -1 && internalTierIndex > -1 && peakTierIndex > internalTierIndex) {
-        const tierDifference = peakTierIndex - internalTierIndex;
-        mmrAdjustment = tierDifference * 15;
+          mmrAdjustment = (peakTierIndex - internalTierIndex) * 15;
       }
-
-      // --- 7. 최종 데이터 정리 ---
+      
+      const baseMmr = getMmrByTier(internalTier);
       const finalMmr = baseMmr + mmrAdjustment;
       const finalWinrate = totalGames > 0 ? ((newWins / totalGames) * 100).toFixed(1) + '%' : 'N/A';
       
@@ -986,6 +975,7 @@
         sub_position: document.getElementById('detail-sub-position').value,
         current_tier: current_tier,
         peak_tier: peak_tier,
+        start_tier: document.getElementById('detail-start-tier').value, // 시작 티어 추가
         title: document.getElementById('detail-title').value,
         wins: newWins,
         losses: newLosses,
@@ -996,8 +986,7 @@
         lp: currentLp,
       };
 
-      // --- 8. Supabase에 최종 데이터 업데이트 ---
-      // 업데이트할 행을 찾을 때는 '기존 닉네임'을 사용합니다.
+      // --- 5. Supabase에 최종 데이터 업데이트 ---
       const { error } = await supabase
         .from('players')
         .update(updatedData)
@@ -1005,7 +994,7 @@
       
       if (error) throw error;
 
-      // --- 9. 성공 처리 ---
+      // --- 6. 성공 처리 ---
       let message = "플레이어 정보가 수정되었습니다!";
       if (totalGames < 5 && ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0)) {
         message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
@@ -1014,12 +1003,10 @@
       getPlayerData();
 
     } catch (error) {
-      // --- 10. 실패 처리 ---
       console.error("데이터 수정 오류:", error);
       showErrorToast("정보 수정에 실패했습니다: " + error.message);
     } finally {
-      // --- 11. 마무리 작업 ---
-      hideDetailsPopup();
+      hidePopup();
       hideLoader();
     }
   }
