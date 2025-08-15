@@ -426,8 +426,14 @@ h1 {
   border: 1px solid #ddd;
 }
 
+.fs-table_row.table-top {
+  background-color: var(--블록배치컬러);
+  color: #000;
+  position: sticky;
+  top: 15px;
+}
+
 .fs-table_table {
-  text-align: left;
   border-collapse: collapse;
   border: 1px solid #ddd;
   width: 100%;
@@ -815,6 +821,7 @@ h1 {
   }
 }
 
+
 /* 로딩 오버레이 스타일 */
 .loader-overlay {
   position: fixed;
@@ -851,4 +858,3 @@ h1 {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
