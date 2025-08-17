@@ -941,7 +941,7 @@ async function handleUpdate() {
             const tempTotalGames = oldWins + i + oldLosses;
             const tempWinrate = tempTotalGames > 0 ? ((oldWins + i) / tempTotalGames * 100) : 50;
             const winrateKey = Math.floor(tempWinrate / 5) * 5;
-            currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
+            currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 30;
           }
         }
         if (lossDifference > 0) {
