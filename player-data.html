@@ -877,164 +877,153 @@
  * '수정 완료' 버튼 클릭 시, 모든 자동 계산 로직을 수행하고
  * Supabase 데이터를 업데이트하는 최종 함수
  */
-  async function handleUpdate() {
-    if (!currentPlayerOriginalData) {
-      showErrorToast("플레이어 원본 데이터를 불러오지 못했습니다.");
-      return;
-    }
-
-    showLoader("플레이어 정보를 수정하는 중...");
-
-    try {
-      // --- 1. 팝업에서 사용자가 수정한 모든 값 가져오기 ---
-      const newNickname = document.getElementById('detail-nickname').value;
-      let newWins = Number(document.getElementById('detail-wins').value) || 0;
-      let newLosses = Number(document.getElementById('detail-losses').value) || 0;
-      const current_tier = document.getElementById('detail-current-tier').value;
-      const peak_tier = document.getElementById('detail-peak-tier').value;
-      
-      // --- 2. 닉네임 유효성 및 중복 확인 (다시 추가된 부분) ---
-      if (!newNickname) {
-        throw new Error("닉네임은 필수 항목입니다.");
-      }
-      if (newNickname !== currentPlayerOriginalData.nickname) {
-        const { data: existingPlayer, error: fetchError } = await supabase
-          .from('players')
-          .select('id')
-          .eq('nickname', newNickname)
-          .single();
-
-        if (fetchError && fetchError.code !== 'PGRST116') { // 'PGRST116'은 결과 없음 오류(정상)
-          throw fetchError;
-        }
-        if (existingPlayer) {
-          throw new Error("이미 존재하는 닉네임입니다.");
-        }
-      }
-      // ----------------------------------------------------
-
-      // --- 3. 변수 초기화 ---
-      const oldWins = Number(currentPlayerOriginalData.wins) || 0;
-      const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
-      let currentLp = Number(currentPlayerOriginalData.lp) || 0;
-      let internalTier = currentPlayerOriginalData.internal_tier || current_tier;
-      let message = "플레이어 정보가 성공적으로 수정되었습니다.";
-
-      // --- 4. '현티어' 변경 감지 및 '내전 티어' 재보정 ---
-      if (current_tier && current_tier !== currentPlayerOriginalData.current_tier) {
-        const originalCurrentIndex = TIER_ORDER.indexOf(currentPlayerOriginalData.current_tier);
-        const originalInternalIndex = TIER_ORDER.indexOf(currentPlayerOriginalData.internal_tier);
-        const newCurrentIndex = TIER_ORDER.indexOf(current_tier);
-
-        if (originalCurrentIndex > -1 && originalInternalIndex > -1 && newCurrentIndex > -1) {
-          const tierDifference = originalInternalIndex - originalCurrentIndex;
-          let newInternalIndex = newCurrentIndex + tierDifference;
-
-          if (newInternalIndex < 0) newInternalIndex = 0;
-          if (newInternalIndex >= TIER_ORDER.length) newInternalIndex = TIER_ORDER.length - 1;
-
-          internalTier = TIER_ORDER[newInternalIndex];
-          message += " (현티어가 변경되어 내전 티어가 재보정되었습니다.)";
-        } else {
-          internalTier = current_tier;
-        }
-        newWins = oldWins;
-        newLosses = oldLosses;
-
-      } else {
-        // --- 5. 현티어가 변경되지 않았을 때만 기존의 LP 계산 로직 실행 ---
-        const totalGames = newWins + newLosses;
-        if (totalGames >= 5) {
-          const winDifference = newWins - oldWins;
-          const lossDifference = newLosses - oldLosses;
-
-          if (winDifference > 0) { // 승리 기록
-            for (let i = 0; i < winDifference; i++) {
-              const tempTotalGames = oldWins + i + oldLosses;
-              const tempWinrate = tempTotalGames > 0 ? ((oldWins + i) / tempTotalGames * 100) : 50;
-              const winrateKey = Math.floor(tempWinrate / 5) * 5;
-              currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
-            }
-          }
-          if (lossDifference > 0) { // 패배 기록
-            for (let i = 0; i < lossDifference; i++) {
-              const tempTotalGames = newWins + oldLosses + i;
-              const tempWinrate = tempTotalGames > 0 ? (newWins / tempTotalGames * 100) : 50;
-              const winrateKey = Math.floor(tempWinrate / 5) * 5;
-              currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
-            }
-          }
-          
-          // 승급/강등 처리
-          while (currentLp >= 100) {
-            const currentTierIndex = TIER_ORDER.indexOf(internalTier);
-            if (currentTierIndex < TIER_ORDER.length - 1) {
-              internalTier = TIER_ORDER[currentTierIndex + 1];
-              currentLp -= 100;
-            } else { currentLp = 100; break; }
-          }
-          while (currentLp < 0) {
-            const currentTierIndex = TIER_ORDER.indexOf(internalTier);
-            if (currentTierIndex > 0) {
-              internalTier = TIER_ORDER[currentTierIndex - 1];
-              currentLp += 100;
-            } else { currentLp = 0; break; }
-          }
-        } else if ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0) {
-            message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
-        }
-      }
-
-      // --- 6. MMR 보정치 및 최종 데이터 정리 ---
-      const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
-      const currentTierIndex = TIER_ORDER.indexOf(current_tier);
-      let mmrAdjustment = 0;
-      if (peakTierIndex > -1 && currentTierIndex > -1 && peakTierIndex > currentTierIndex) {
-          mmrAdjustment = (peakTierIndex - currentTierIndex) * 15;
-      }
-
-      const totalGamesFinal = newWins + newLosses;
-      const finalWinrate = totalGamesFinal > 0 ? ((newWins / totalGamesFinal) * 100).toFixed(1) + '%' : 'N/A';
-      const baseMmr = getMmrByTier(internalTier);
-      const finalMmr = baseMmr + mmrAdjustment;
-
-      const updatedData = {
-        nickname: newNickname, // 수정된 닉네임 사용
-        main_position: document.getElementById('detail-main-position').value,
-        sub_position: document.getElementById('detail-sub-position').value,
-        current_tier: current_tier,
-        peak_tier: peak_tier,
-        start_tier: document.getElementById('detail-start-tier').value,
-        title: document.getElementById('detail-title').value,
-        wins: newWins,
-        losses: newLosses,
-        winrate: finalWinrate,
-        internal_tier: internalTier,
-        mmr: finalMmr,
-        mmr_adj: mmrAdjustment,
-        lp: currentLp,
-      };
-
-      // --- 7. Supabase에 최종 데이터 업데이트 ---
-      // 업데이트할 행을 찾을 때는 '기존 닉네임'을 사용합니다.
-      const { data, error } = await supabase
-        .from('players')
-        .update(updatedData)
-        .eq('nickname', currentPlayerOriginalData.nickname);
-
-      if (error) { throw error; }
-
-      showSuccessToast(message);
-      getPlayerData();
-
-    } catch (error) {
-      console.error("데이터 수정 오류:", error);
-      showErrorToast("정보 수정에 실패했습니다: " + error.message);
-    } finally {
-      hidePopup();
-      hideLoader();
-    }
+  /**
+ * '수정 완료' 버튼 클릭 시, 모든 자동 계산 로직을 수행하고
+ * Supabase 데이터를 업데이트하는 최종 함수
+ */
+async function handleUpdate() {
+  if (!currentPlayerOriginalData) {
+    showErrorToast("플레이어 원본 데이터를 불러오지 못했습니다.");
+    return;
   }
+
+  showLoader("플레이어 정보를 수정하는 중...");
+
+  try {
+    // --- 1. 팝업에서 사용자가 수정한 모든 값 가져오기 ---
+    const newNickname = document.getElementById('detail-nickname').value;
+    let newWins = Number(document.getElementById('detail-wins').value) || 0;
+    let newLosses = Number(document.getElementById('detail-losses').value) || 0;
+    const current_tier = document.getElementById('detail-current-tier').value;
+    const peak_tier = document.getElementById('detail-peak-tier').value;
+    
+    // --- 2. 닉네임 유효성 및 중복 확인 ---
+    if (!newNickname) { throw new Error("닉네임은 필수 항목입니다."); }
+    if (newNickname !== currentPlayerOriginalData.nickname) {
+      const { data: existingPlayer, error: fetchError } = await supabase
+        .from('players').select('id').eq('nickname', newNickname).single();
+      if (fetchError && fetchError.code !== 'PGRST116') { throw fetchError; }
+      if (existingPlayer) { throw new Error("이미 존재하는 닉네임입니다."); }
+    }
+
+    // --- 3. 변수 초기화 ---
+    const oldWins = Number(currentPlayerOriginalData.wins) || 0;
+    const oldLosses = Number(currentPlayerOriginalData.losses) || 0;
+    let currentLp = Number(currentPlayerOriginalData.lp) || 0;
+    let internalTier = currentPlayerOriginalData.internal_tier || current_tier;
+    let message = "플레이어 정보가 성공적으로 수정되었습니다.";
+
+    // --- 4. '현티어' 변경 감지 및 '내전 티어' 재보정 ---
+    if (current_tier && current_tier !== currentPlayerOriginalData.current_tier) {
+      const originalCurrentIndex = TIER_ORDER.indexOf(currentPlayerOriginalData.current_tier);
+      const originalInternalIndex = TIER_ORDER.indexOf(currentPlayerOriginalData.internal_tier);
+      const newCurrentIndex = TIER_ORDER.indexOf(current_tier);
+      if (originalCurrentIndex > -1 && originalInternalIndex > -1 && newCurrentIndex > -1) {
+        const tierDifference = originalInternalIndex - originalCurrentIndex;
+        let newInternalIndex = newCurrentIndex + tierDifference;
+        if (newInternalIndex < 0) newInternalIndex = 0;
+        if (newInternalIndex >= TIER_ORDER.length) newInternalIndex = TIER_ORDER.length - 1;
+        internalTier = TIER_ORDER[newInternalIndex];
+        message += " (현티어가 변경되어 내전 티어가 재보정되었습니다.)";
+      } else {
+        internalTier = current_tier;
+      }
+      newWins = oldWins;
+      newLosses = oldLosses;
+    } else {
+      // --- 5. 현티어가 변경되지 않았을 때만 LP 계산 로직 실행 ---
+      const totalGames = newWins + newLosses;
+      if (totalGames >= 5) {
+        const winDifference = newWins - oldWins;
+        const lossDifference = newLosses - oldLosses;
+        if (winDifference > 0) {
+          for (let i = 0; i < winDifference; i++) {
+            const tempTotalGames = oldWins + i + oldLosses;
+            const tempWinrate = tempTotalGames > 0 ? ((oldWins + i) / tempTotalGames * 100) : 50;
+            const winrateKey = Math.floor(tempWinrate / 5) * 5;
+            currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][0] : 45;
+          }
+        }
+        if (lossDifference > 0) {
+          for (let i = 0; i < lossDifference; i++) {
+            const tempTotalGames = newWins + oldLosses + i;
+            const tempWinrate = tempTotalGames > 0 ? (newWins / tempTotalGames * 100) : 50;
+            const winrateKey = Math.floor(tempWinrate / 5) * 5;
+            currentLp += LP_DATA[winrateKey] ? LP_DATA[winrateKey][1] : -30;
+          }
+        }
+        while (currentLp >= 100) {
+          const currentTierIndex = TIER_ORDER.indexOf(internalTier);
+          if (currentTierIndex < TIER_ORDER.length - 1) {
+            internalTier = TIER_ORDER[currentTierIndex + 1];
+            currentLp -= 100;
+          } else { currentLp = 100; break; }
+        }
+        while (currentLp < 0) {
+          const currentTierIndex = TIER_ORDER.indexOf(internalTier);
+          if (currentTierIndex > 0) {
+            internalTier = TIER_ORDER[currentTierIndex - 1];
+            currentLp += 100;
+          } else { currentLp = 0; break; }
+        }
+      } else if ((newWins - oldWins) > 0 || (newLosses - oldLosses) > 0) {
+          message += " (5판 미만 플레이하여 LP는 변동되지 않습니다.)";
+      }
+    }
+
+    // --- 6. 동적 MMR 보정치 자동 계산 (수정된 부분) ---
+    const peakTierIndex = TIER_ORDER.indexOf(peak_tier);
+    // '현티어'가 아닌, 최종적으로 결정된 '내전 티어'를 기준으로 격차를 계산합니다.
+    const internalTierIndex = TIER_ORDER.indexOf(internalTier);
+    let mmrAdjustment = 0;
+    if (peakTierIndex > -1 && internalTierIndex > -1 && peakTierIndex > internalTierIndex) {
+        mmrAdjustment = (peakTierIndex - internalTierIndex) * 15;
+    }
+
+    // --- 7. 최종 데이터 정리 ---
+    const totalGamesFinal = newWins + newLosses;
+    const finalWinrate = totalGamesFinal > 0 ? ((newWins / totalGamesFinal) * 100).toFixed(1) + '%' : 'N/A';
+    const baseMmr = getMmrByTier(internalTier);
+    const finalMmr = baseMmr + mmrAdjustment;
+
+    const updatedData = {
+      nickname: newNickname,
+      main_position: document.getElementById('detail-main-position').value,
+      sub_position: document.getElementById('detail-sub-position').value,
+      current_tier: current_tier,
+      peak_tier: peak_tier,
+      start_tier: document.getElementById('detail-start-tier').value,
+      title: document.getElementById('detail-title').value,
+      wins: newWins,
+      losses: newLosses,
+      winrate: finalWinrate,
+      internal_tier: internalTier,
+      mmr: finalMmr,
+      mmr_adj: mmrAdjustment,
+      lp: currentLp,
+    };
+
+    // --- 8. Supabase에 최종 데이터 업데이트 ---
+    const { error } = await supabase
+      .from('players')
+      .update(updatedData)
+      .eq('nickname', currentPlayerOriginalData.nickname);
+
+    if (error) { throw error; }
+
+    showSuccessToast(message);
+    getPlayerData();
+
+  } catch (error) {
+    console.error("데이터 수정 오류:", error);
+    showErrorToast("정보 수정에 실패했습니다: " + error.message);
+  } finally {
+    hidePopup();
+    hideLoader();
+  }
+}
+
+  
    // 페이지가 모두 로드된 후 실행
   document.addEventListener('DOMContentLoaded', function() {
     // 1. 페이지가 열리면 바로 전체 플레이어 목록을 불러옵니다.
