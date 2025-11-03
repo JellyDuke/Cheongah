@@ -1,0 +1,492 @@
+*{
+    margin:0;
+    padding:0;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Thin.woff') format('woff');
+    font-weight: 100;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-ExtraLight.woff') format('woff');
+    font-weight: 200;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Light.woff') format('woff');
+    font-weight: 300;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Regular.woff') format('woff');
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Medium.woff') format('woff');
+    font-weight: 500;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-SemiBold.woff') format('woff');
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Bold.woff') format('woff');
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-ExtraBold.woff') format('woff');
+    font-weight: 800;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Black.woff') format('woff');
+    font-weight: 900;
+    font-display: swap;
+}
+
+
+
+
+
+
+
+@font-face {
+    font-family: 'Simple';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-1@1.1/Danjo-bold-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-display: swap;
+}
+
+
+
+
+
+li{
+    list-style: none;
+}
+
+a{
+    color:#fff;
+    text-decoration: none;
+}
+
+
+body{
+    width:100%;
+    height:100%;
+    color:#fff;
+    background: #000;   
+}
+
+
+p{
+    font-family: 'Pretendard';
+    font-size: 2rem;
+    font-weight: 200;
+    line-height: 2.6rem;
+}
+
+
+section{
+    width:80%;
+    margin:0 auto;
+}
+
+
+h1{
+    font-family: 'Simple';
+    font-size: 4rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+header{
+    position: fixed;
+    width:100%;
+    z-index: 99;
+    font-family: 'Pretendard';
+}
+
+.menu{
+    position: absolute;
+    right:10%;
+    top:60px;
+}
+
+
+.menu img{
+    width:50%;
+}
+
+
+
+
+
+.header_wrap{
+    position: absolute;
+    width:100%;
+    height:100vh;
+    background: #000;
+    z-index: 999;
+    display: none;
+    text-align: center;
+}
+
+.menu_close{
+    margin-top:60px
+}
+
+
+.header_wrap ul{
+    position: absolute;
+    top:50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+}
+
+
+
+.header_wrap ul li{
+   line-height: 5rem;
+}
+
+
+
+.backgrond01{
+    position: absolute;
+    width:100%;
+    height:3000px;
+    background-image: url(../img/bg01.png);
+    background-repeat: no-repeat;
+    background-size: cover;
+    font-family: 'Pretendard';
+}
+
+.banner_section{
+    position: relative;
+    width:100%;
+    height:100vh;
+}
+
+
+.banner_main{
+    position: absolute;
+    top:50%;
+    left:50%;
+    transform: translate(-50%,-50%);
+    text-align: center;
+}
+
+
+.banner_main p{
+    margin-top:6%;
+}
+
+
+.banner_main ul{
+    display: flex;
+    margin-top:6%;
+    justify-content: center;
+}
+
+.banner_main ul img{
+    width:50%;
+}
+
+
+
+
+/* 청아의 규정 */
+
+
+.prescript_wrap{
+    position: relative;
+    display: flex;
+    margin-top:20%;
+    align-items: center;
+}
+
+
+.prescript_text{
+    width:30%;
+}
+
+
+.prescript_text p{
+    margin-top:6%;
+}
+
+.prescript_wrap .swiper{
+    display: flex;
+    position: absolute;
+    width:65%;
+    right:0;
+    overflow: hidden;
+}
+
+
+
+.prescript_wrap .swiper-slide{
+    font-size:22px;
+    line-height: 40px;
+    align-content: center;
+    border-radius: 24px;
+}
+
+
+.prescript_wrap .swiper-slide img{
+    width:100%;
+}
+
+
+
+
+
+
+.together_Wrap{
+    position: relative;
+    top:24%;
+}
+
+
+
+.together_text p{
+    margin-top:2%;
+    margin-bottom:6%;
+}
+
+
+.together_slide_wrap{
+    width:100%;
+}
+
+
+.together_Wrap .swiper-wrapper{
+    align-items: center;
+}
+
+.together_slide_wrap .swiper-wrapper .swiper-slide{
+    display: block;
+    width:100%;
+    height:500px;
+    text-align: center;
+    justify-items: center;
+    align-content: center;
+}
+
+
+.together_slide_wrap .swiper-slide:nth-child(1){
+    background-image: url(../img/visual01.png);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+
+
+
+.together_slide_wrap .swiper-slide:nth-child(2){
+    background-image: url(../img/visual02.png);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.together_slide_wrap .swiper-slide:nth-child(3){
+    background-image: url(../img/visual03.png);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+
+
+.together_slide_wrap .swiper-slide:nth-child(4){
+    background-image: url(../img/visual04.png);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+
+
+
+.together_slide_wrap .swiper-button-next,.together_slide_wrap .swiper-button-prev{
+    color:#fff;
+}
+
+
+
+.copy_wrap{
+    position: relative;
+    width:100%;
+    padding-top:60%;
+    height:800vh;
+    text-align: center;
+    background-image: url(../img/bg02.png);
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: bottom;
+}
+
+
+
+.copy_text_wrap{
+    position: sticky;
+    top:50%;
+    transform: translateY(-50%);
+}
+
+
+
+.copy_text01, .copy_text02, .copy_text03{
+    opacity: 0;
+    transition: opacity 1s ease;
+} 
+
+
+
+.copy_text_wrap p{
+    position: absolute;
+    width: 100%;
+    left:50%;
+    top:50%;
+    transform: translate(-50%,-50%);  
+}
+
+
+
+
+
+
+
+
+
+@media (max-width: 767px) {
+
+    p{
+        font-size: 1rem;
+        line-height: 1.5rem;
+    }
+
+
+    .backgrond01{
+        height:2000px;
+    }
+
+    
+
+    h1{
+        font-size: 1.8rem;
+    }
+
+    .menu{
+        width:10%;
+        right:5%;
+    }
+
+    .menu img{
+        width:100%;
+    }
+
+    .banner_main{
+        width:90%;
+    }
+
+    .banner_main img{
+        width:90%;
+    }
+
+    .prescript_wrap{
+        display: block;
+    }
+
+    .prescript_text{
+        width:90%;
+    }
+
+
+    .prescript_wrap .swiper{
+        margin-top:10%;
+        width:120%;
+    }
+
+
+    .prescript_wrap .swiper-slide{
+        width:120%;
+    }
+
+    .prescript_wrap .swiper-slide img{
+        width:110%;
+    }
+
+
+    .together_Wrap{
+        top:20%;
+    }
+
+
+
+    .together_slide_wrap .swiper-slide{
+        background-position: center;
+    }
+
+
+    .together_Wrap h2{
+        font-size: 1rem;
+    }
+
+
+    .swiper-button-next, .swiper-button-prev{
+        display: none !important;
+    }
+
+
+
+    .copy_wrap{
+        height:400vh;
+    }
+
+
+    .copy_wrap{
+        padding-top:180%;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+}
