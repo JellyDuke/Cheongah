@@ -417,6 +417,7 @@ header{
 
     .banner_main{
         width:90%;
+        white-space: nowrap;
     }
 
     .banner_main img{
