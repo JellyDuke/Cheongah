@@ -148,7 +148,9 @@ header{
     width:50%;
 }
 
-
+.text-main{
+    white-space: nowrap;    
+}
 
 .img-menu{
     cursor: pointer;
